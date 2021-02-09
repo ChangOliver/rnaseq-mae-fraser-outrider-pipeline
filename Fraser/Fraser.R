@@ -39,8 +39,8 @@ res <- results(fds, zScoreCutoff=NA, padjCutoff=0.05, deltaPsiCutoff=0.3)
 samples <- unique(res$sampleID)
 dir.create("Fraser_results", showWarnings = FALSE)
 for (s in c(1:length(samples))){
-  res_s <- res %>% filter(grepl(samples[s], sampleID))
-  write.csv(res_s, paste0("Fraser_results/", samples[s], '.FRASER.result.csv'))
+  res_s <- res %>% filter(grepl(samples[s], sampleID)) %>% replace(is.na(.), ".")
+  write.csv(res_s, paste0("Fraser_results/", samples[s], '.FRASER.result.csv'), row.names=FALSE)
 }
 
 

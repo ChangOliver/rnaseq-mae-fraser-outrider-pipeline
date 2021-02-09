@@ -4,14 +4,9 @@
 print("Loading libraries...")
 suppressMessages(library(dplyr))
 suppressMessages(library(OUTRIDER))
-suppressMessages(library(IHW))
-suppressMessages(library(tibble))
+suppressMessages(library(biomaRt))
 suppressMessages(library(ggplot2))
-suppressMessages(library(ggrepel))
-suppressMessages(library(rlist))
-suppressMessages(library(magrittr))
-suppressMessages(library(httr))
-suppressMessages(library(jsonlite))
+suppressMessages(library(ggrepel)
 
 #############################
 # Function declaration
@@ -66,26 +61,28 @@ combine.htseq <- function(cntDir, pat, outFile){
   rm(y, z, i, DT)
 }
 
-get.translation <- function(res, col){
-  idSymbolTable <- read.csv(file = "data/translation_table.csv")
-  translationDict <- as.vector(idSymbolTable$Gene.name)
-  names(translationDict) <- idSymbolTable$Ensembl.ID
-  
-  for (i in c(1:nrow(res))){
-    res[i, col] <- translationDict[[res[[i, 1]]]]
-  }
-  
-  return(res)
-}
-
 run.OUTRIDER <- function(countDir, resDir){
-  
   #### Load data
   cts <- paste0(countDir, "/htseq-counts-all.csv")
-  ctsTable <- read.table(cts, check.names=FALSE, header=TRUE, sep = ",", stringsAsFactors = FALSE)
-  ctsMatrix <- as.matrix(ctsTable[,-1])
-  rownames(ctsMatrix) <- as.character(get.translation(as.matrix(ctsTable[,1]), 1))
-  
+  ctsTable <- read.csv(cts, check.names=FALSE, header=TRUE, stringsAsFactors = FALSE)
+  colnames(ctsTable)[1] <- "geneID"
+  ctsTable <- mutate(ctsTable, geneID = sub("\\..*$", "", geneID))
+
+  ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
+
+  queryResult <- getBM(attributes=c('ensembl_gene_id', 'external_gene_name'),
+                       filters = c('ensembl_gene_id'),
+                       values = ctsTable$geneID, mart=ensembl) %>% #query
+                  mutate(geneID = ensembl_gene_id) %>%
+                  subset(select=-c(ensembl_gene_id)) #rename column
+
+  ctsTable <- merge(ctsTable, queryResult, by ='geneID', all=T) %>%
+    mutate(geneID = ifelse(is.na(external_gene_name), geneID, external_gene_name)) %>%
+    subset(select=-c(external_gene_name))
+
+  ctsMatrix <- data.matrix(ctsTable)[, -1]
+  rownames(ctsMatrix) <- ctsTable[,1]
+
   #### Create OUTRIDER object
   ods <- OutriderDataSet(countData=ctsMatrix)
   ods <- filterExpression(ods, minCounts=TRUE, filterGenes=TRUE)
@@ -93,17 +90,6 @@ run.OUTRIDER <- function(countDir, resDir){
   
   # saveRDS(ods, file = paste0(resDir, "/OUTRIDER_dataset.rds"))
   return(ods)
-}
-
-extract.result <- function(dds){
-
-  res <- OUTRIDER::results(ods, all = TRUE)
-  #res[ , "name"] <- as.character(NA)
-  #res <- res[, c(1, 15, 2:14)] %>% get.translation(2)
-  #colnames(res)[2] <- "geneID"
-  #colnames(res)[1] <- "ensemblID"
-  
-  return(res)
 }
 
 plot_QQ_ExRank <- function(res, resDir){
@@ -136,11 +122,10 @@ print("Starting analysis")
 args <- commandArgs(trailingOnly = TRUE)
 
 dataPath <- args[[1]]
-# resDir <- args[[2]]
 
 combine.htseq(dataPath, "*.htseq-count.txt", "/htseq-counts-all.csv")
 
-outriderDir <- "OUTRIDER_result"
+outriderDir <- "Outrider_results"
 dir.create(outriderDir, showWarnings = FALSE, recursive = TRUE)
   
 #### Run OUTRIDER
@@ -152,7 +137,7 @@ if (file_test("-d", dataPath)){
 }
 
 message("extracting result")
-odsResult <- extract.result(ods)
+odsResult <- OUTRIDER::results(ods, all = TRUE)
 
 # message("generating QQ & ExRank plot")
 # plot_QQ_ExRank(odsResult, outriderDir)
@@ -161,6 +146,8 @@ print("Dumping results...")
 samples <- unique(odsResult$sampleID)
 dir.create("Outrider_results", showWarnings = FALSE)
 for (s in c(1:length(samples))){
-  res_s <- odsResult %>% filter(grepl(samples[s], sampleID))
-  write.csv(res_s, paste0("Outrider_results/", samples[s], '.OUTRIDER.result.csv'))
+  res_s <- odsResult %>% 
+        filter(grepl(samples[s], sampleID)) %>%
+        replace(is.na(.), ".")
+  write.csv(res_s, paste0("Outrider_results/", samples[s], '.OUTRIDER.result.csv'), row.names=FALSE)
 }

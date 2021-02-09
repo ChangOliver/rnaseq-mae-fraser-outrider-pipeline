@@ -39,6 +39,7 @@ for (i in c(1:length(mae.all))){
   resMAE$gnomadAF <- gscores(mafdb, rng)$AF
   resMAE[, rare := (gnomadAF <= 0.01 | is.na(gnomadAF))]
   resMAE <- mutate(resMAE, sampleID = sampleID) %>%
-            relocate(sampleID, .before=contig)
-  write.csv(resMAE, paste0('MAE_results/', sampleID, '.MAE.result.csv'))
+            relocate(sampleID, .before=contig) %>% 
+            replace(is.na(.), ".")
+  write.csv(resMAE, paste0('MAE_results/', sampleID, '.MAE.result.csv'), row.names=FALSE)
 }

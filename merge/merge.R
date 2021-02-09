@@ -9,47 +9,31 @@ readInput <- function(maeDir, fraserDir, outriderDir, sample){
   # ==== Input FRASER ====
   fraser <- read.csv(paste0(fraserDir, '/', sample, '.FRASER.result.csv')) %>% #read data table
             subset(select = -c(X, sampleID)) %>% #remove redundant columns
-            rename_all( function(colname) paste0("FRASER_", colname)) #add prefix
+            rename_all( function(colname) paste0("FRASER_", colname)) %>% #add prefix
+            replace(".", NA)
   # ==== Input MAE ====
   mae <- read.csv(paste0(maeDir, '/', sample, '.MAE.result.csv')) %>% #read data table
           subset(select = -c(X, sampleID)) %>% #remove redundant columns
-          rename_all( function(colname) paste0("MAE_", colname)) #add prefix
+          rename_all( function(colname) paste0("MAE_", colname)) %>% #add prefix
+          replace(".", NA)
   # ==== Input OUTRIDER ====
   outrider <- read.csv(paste0(outriderDir, '/', sample, '.OUTRIDER.result.csv')) %>% #read data table
               subset(select = -c(X, sampleID)) %>% #remove redundant columns
               rename_all( function(colname) paste0("OUTRIDER_", colname)) #add prefix
-              # subset(OUTRIDER_aberrant == TRUE) %>%
+              # subset(OUTRIDER_aberrant == TRUE)
 
   # query range with gene name
-  outrider.gene.name <- filter(outrider, !grepl("^ENSG", OUTRIDER_geneID))
   queryResult <- getBM(attributes=c('start_position', 'end_position', 'external_gene_name'),
                        filters = c('external_gene_name'), 
-                       values = outrider.gene.name$OUTRIDER_geneID, mart=ensembl) %>% #query
+                       values = outrider$OUTRIDER_geneID, mart=ensembl) %>% #query
                   rename(OUTRIDER_geneID = external_gene_name) %>% #rename column
                   unique()
-  outrider.gene.name <- merge(outrider.gene.name, queryResult, by ='OUTRIDER_geneID', all=T) %>%
+  outrider <- merge(outrider, queryResult, by ='OUTRIDER_geneID', all=T) %>%
                         rename(OUTRIDER_start = start_position) %>% #rename column
                         rename(OUTRIDER_end = end_position) %>% #rename column
-                        relocate(OUTRIDER_start, OUTRIDER_end, .after=OUTRIDER_geneID) #reorder column
-  # query range with ensembl
-  outrider.ensg <- filter(outrider, grepl("^ENSG", OUTRIDER_geneID)) %>%
-                    mutate(OUTRIDER_geneID = sub("\\..*$", "", OUTRIDER_geneID))
-  queryResult <- getBM(attributes=c('ensembl_gene_id', 'start_position', 'end_position', 'external_gene_name'),
-                       filters = c('ensembl_gene_id'), 
-                       values = outrider.ensg$OUTRIDER_geneID, mart=ensembl) %>% #query
-                  rename(OUTRIDER_geneID = ensembl_gene_id ) %>% #rename column
-                  unique()
-  outrider.ensg <- merge(outrider.ensg, queryResult, by ='OUTRIDER_geneID', all=T) %>%
-                    rename(OUTRIDER_start = start_position) %>% #rename column
-                    rename(OUTRIDER_end = end_position) %>% #rename column
-                    relocate(OUTRIDER_start, OUTRIDER_end, .after=OUTRIDER_geneID) %>% #reorder column
-                    mutate(OUTRIDER_geneID = ifelse(is.na(external_gene_name), OUTRIDER_geneID, external_gene_name)) %>% #replace ensembl if gene name exists
-                    subset(select = -c(external_gene_name)) #remove gene name column
-  # merge gene.name & ensg
-  outrider <- rbind(outrider.gene.name, outrider.ensg) #merge
-  # # remove unneeded variables
-  # rm(outrider.ensg, queryResult, outrider.gene.name)  
-  
+                        relocate(OUTRIDER_start, OUTRIDER_end, .after=OUTRIDER_geneID) %>% #reorder column
+                        replace(".", NA)
+                        
   return(list("mae"=mae, "fraser"=fraser, "outrider"=outrider))
 }
 mergeAll <- function(mae, fraser, outrider){
@@ -265,6 +249,8 @@ mae.all <- list.files(path = maeDir, pattern = "*.MAE.result.csv$", all.files = 
 samples <- str_match(mae.all, "(.*?).MAE.result.csv")[, 2]
 # define dataset for biomaRt
 ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl") 
+gene.list <- getBM(attributes=c('start_position', 'end_position', 'external_gene_name'), mart=ensembl) %>%
+              arrange(start_position, external_gene_name)
 
 # loop all samples
 for (s in c(1:length(samples))){
@@ -280,9 +266,34 @@ for (s in c(1:length(samples))){
                     mutate(sampleID = samples[s]) %>%
                     mutate(seqnames = ifelse(MAE_contig == ".", FRASER_seqnames, MAE_contig)) %>%
                     subset(select = -c(MAE_contig, FRASER_seqnames)) %>%
-                    relocate(sampleID, seqnames) %>%
-                    arrange(seqnames, OUTRIDER_start, FRASER_start, MAE_position) 
-                    
+                    rename(geneID = OUTRIDER_geneID) %>%
+                    relocate(sampleID, geneID, seqnames) %>%
+                    arrange(seqnames, OUTRIDER_start, FRASER_start, MAE_position)
+  
+  for (r in c(1:nrow(merged_result))){
+    if (merged_result$geneID[r] == "."){
+      if (merged_result$MAE_position[r] != "."){
+        for (i in c(1:nrow(gene.list))){
+            if (merged_result$MAE_position[r] > gene.list$start_position[i] & merged_result$MAE_position[r] < gene.list$end_position[i]){
+              merged_result$geneID[r] <- gene.list$external_gene_name[i]
+              break
+            } else if (merged_result$MAE_position[r] < gene.list$start_position[i]){
+              break
+            }
+        }
+      } else if (merged_result$FRASER_start[r] != "."){
+        for (i in c(1:nrow(gene.list))){
+          if (merged_result$FRASER_start[r] > gene.list$start_position[i] & merged_result$FRASER_end[r] < gene.list$end_position[i]){
+            merged_result$geneID[r] <- gene.list$external_gene_name[i]
+            break
+          } else if (merged_result$FRASER_start[r] < gene.list$start_position[i]){
+            break
+          }
+        }
+      }
+    }
+  }
+
   # write output
-  write_tsv(merged_result, paste0('./merged_results/', samples[s], '.tsv'))
+  write_tsv(merged_result, paste0('./merged_results/', samples[s], '.rnaseq.merge.tsv'))
 }
