@@ -139,8 +139,8 @@ if (file_test("-d", dataPath)){
 message("extracting result")
 odsResult <- OUTRIDER::results(ods, all = TRUE)
 
-# message("generating QQ & ExRank plot")
-# plot_QQ_ExRank(odsResult, outriderDir)
+message("generating QQ & ExRank plot")
+plot_QQ_ExRank(odsResult, outriderDir)
 
 print("Dumping results...")
 samples <- unique(odsResult$sampleID)
