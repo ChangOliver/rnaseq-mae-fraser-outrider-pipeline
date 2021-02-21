@@ -8,14 +8,14 @@ dataDir <- args[[1]]
 
 # extract bam files
 bam.all <- list.files(path = dataDir,
-                      pattern = "*.bam$",
+                      pattern = "dedup.bam$",
                       all.files = TRUE,
-                      recursive = FALSE,
-                      ignore.case = FALSE,
-                      include.dirs = FALSE)
+                      recursive = TRUE)
+
+bam.all <- bam.all[grep("1.ALIGNMENT", bam.all)]
 
 # create file table
-dataInfo <- data.table(sampleID = str_match(bam.all, "(.*?).sorted.dedup.bam")[,2], bamFile = paste0(dataDir, '/', bam.all), pairedEnd=TRUE)
+dataInfo <- data.table(sampleID = str_match(bam.all, "1.ALIGNMENT/(.*?).sorted.dedup.bam")[,2], bamFile = paste0(dataDir, '/', bam.all), pairedEnd=TRUE)
 
 settings <- FraserDataSet(colData=dataInfo, workingDir='all_wkdir')
 register(MulticoreParam(workers=min(10, multicoreWorkers())))
@@ -36,72 +36,74 @@ fds <- annotateRanges(fds)
 # get results: we recommend to use an FDR cutoff 0.05
 res <- results(fds, zScoreCutoff=NA, padjCutoff=0.05, deltaPsiCutoff=0.3)
 
-samples <- unique(res$sampleID)
-dir.create("Fraser_results", showWarnings = FALSE)
+samples <- str_sort(unique(res$sampleID))
+savePath <- paste0(dataDir, "/", str_match(bam.all, "(.*)/1.ALIGNMENT/.*")[,2])
+# dir.create("Fraser_results", showWarnings = FALSE)
 for (s in c(1:length(samples))){
-  res_s <- res %>% filter(grepl(samples[s], sampleID)) %>% replace(is.na(.), ".")
-  write.csv(res_s, paste0("Fraser_results/", samples[s], '.FRASER.result.csv'), row.names=FALSE)
+  res_s <- res[res$sampleID == samples[s]] %>% replace(is.na(.), ".")
+  dir.create(paste0(savePath[s], "/21.Fraser"), showWarnings = FALSE)
+  write.csv(res_s, paste0(savePath[s], "/21.Fraser/", samples[s], '.FRASER.result.csv'), row.names=FALSE)
 }
 
 saveFraserDataSet(fds, dir='all_wkdir', name="Data_Analysis")
 
 # images
-samples = bam.all
+# samples = str_match(bam.all, "1.ALIGNMENT/(.*?).sorted.dedup.bam")[,2]
 types = c("theta", "psi5", "psi3")
 
-for (sample in samples){
-  path = paste0("./results/", sample, "/Volcano/")
-  dir.create(path, showWarnings = FALSE)
+for (s in c(1:length(samples))){
+  path = paste0(savePath[s], "/21.Fraser/graphs/Volcano/")
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
   for (type in types){
-    png(file=paste0(path, sample, "-Volcano-", type, ".png"))
-    print(plotVolcano(fds, sampleID=sample, type=type))
+    png(file=paste0(path, samples[s], "-Volcano-", type, ".png"))
+    print(plotVolcano(fds, sampleID=samples[s], type=type))
     dev.off()
   }
 }
 
-for (sample in samples){
-  extract <- res[res$sampleID == sample]
-  path = paste0("./results/", sample, "/QQ/")
-  dir.create(path, showWarnings = FALSE)
+for (s in c(1:length(samples))){
+  extract <- res[res$sampleID == samples[s]]
+  path = paste0(savePath[s], "/21.Fraser/graphs/QQ/")
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
   for (i in c(1:length(extract))){
     if (is.na(extract[i]$hgncSymbol@values)){
-      png(file=paste0(path, sample, "-QQ-", i, "-", extract[i]$type, ".png"))
+      png(file=paste0(path, samples[s], "-QQ-", i, "-", extract[i]$type, ".png"))
     }
     else{
-      png(file=paste0(path, sample, "-QQ-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
+      png(file=paste0(path, samples[s], "-QQ-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
     }
     print(plotQQ(fds, result=extract[i]))
     dev.off()
   }
 }
 
-for (sample in samples){
-  extract <- res[res$sampleID == sample]
-  write.csv(extract, paste0("./results/", sample, "/", sample, "-result.csv"))
-  path = paste0("./results/", sample, "/Expression/")
-  dir.create(path, showWarnings = FALSE)
-  for (i in c(1:length(extract))){
-      if (is.na(extract[i]$hgncSymbol@values)){
-        png(file=paste0(path, "/", sample, "-EX-", i, "-", extract[i]$type, ".png"))
-      }
-      else{
-        png(file=paste0(path, "/", sample, "-EX-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
-      }
-      print(plotExpression(fds, result=extract[i]))
-      dev.off()
-  }  
-}
+# for (s in c(1:length(samples))){
+#   extract <- res[res$sampleID == samples[s]]
+#   write.csv(extract, paste0("./results/", sample, "/", sample, "-result.csv"))
+#   path = paste0("./results/", sample, "/Expression/")
+#   dir.create(path, showWarnings = FALSE)
+#   for (i in c(1:length(extract))){
+#       if (is.na(extract[i]$hgncSymbol@values)){
+#         png(file=paste0(path, "/", sample, "-EX-", i, "-", extract[i]$type, ".png"))
+#       }
+#       else{
+#         png(file=paste0(path, "/", sample, "-EX-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
+#       }
+#       print(plotExpression(fds, result=extract[i]))
+#       dev.off()
+#   }  
+# }
 
-for (sample in samples){
-  extract <- res[res$sampleID == sample]
-  path = paste0("./results/", sample, "/Pred_vs_Obs")
-  dir.create(path, showWarnings = FALSE)
+for (s in c(1:length(samples))){
+  extract <- res[res$sampleID == samples[s]]
+  path = paste0(savePath[s], "/21.Fraser/graphs/Pred_vs_Obs/")
+  dir.create(path, recursive = TRUE, showWarnings = FALSE)
   for (i in c(1:length(extract))) {
     if (is.na(extract[i]$hgncSymbol@values)){
-      png(file=paste0(path, "/", sample, "-PvO-", i, "-", extract[i]$type, ".png"))
+      png(file=paste0(path, "/", samples[s], "-PvO-", i, "-", extract[i]$type, ".png"))
     }
     else{
-      png(file=paste0(path, "/", sample, "-PvO-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
+      png(file=paste0(path, "/", samples[s], "-PvO-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
     }
     print(plotExpectedVsObservedPsi(fds, result=extract[i]))
     dev.off()
