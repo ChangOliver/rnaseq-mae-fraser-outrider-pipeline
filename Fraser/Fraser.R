@@ -7,11 +7,7 @@ args <- commandArgs(trailingOnly = TRUE)
 dataDir <- args[[1]]
 
 # extract bam files
-bam.all <- list.files(path = dataDir,
-                      pattern = "dedup.bam$",
-                      all.files = TRUE,
-                      recursive = TRUE)
-
+bam.all <- list.files(path = dataDir, pattern = "dedup.bam$", all.files = TRUE, recursive = TRUE)
 bam.all <- bam.all[grep("1.ALIGNMENT", bam.all)]
 
 # create file table
@@ -25,8 +21,7 @@ fds <- countRNAData(settings)
 fds <- calculatePSIValues(fds)
 
 # filtering junction with low expression
-fds <- filterExpressionAndVariability(fds, minExpressionInOneSample=20,
-                                      minDeltaPsi=0.0, filter=TRUE)
+fds <- filterExpressionAndVariability(fds, minExpressionInOneSample=20, minDeltaPsi=0.0, filter=TRUE)
 
 # use PCA to speed up the tutorial
 fds <- FRASER(fds, q=bestQ(fds, type="psi5"), implementation="PCA")
@@ -48,14 +43,13 @@ for (s in c(1:length(samples))){
 saveFraserDataSet(fds, dir='all_wkdir', name="Data_Analysis")
 
 # images
-# samples = str_match(bam.all, "1.ALIGNMENT/(.*?).sorted.dedup.bam")[,2]
 types = c("theta", "psi5", "psi3")
 
 for (s in c(1:length(samples))){
   path = paste0(savePath[s], "/21.Fraser/graphs/Volcano/")
   dir.create(path, recursive = TRUE, showWarnings = FALSE)
   for (type in types){
-    png(file=paste0(path, samples[s], "-Volcano-", type, ".png"))
+    png(file=paste0(path, samples[s], ".Volcano.", type, ".png"))
     print(plotVolcano(fds, sampleID=samples[s], type=type))
     dev.off()
   }
@@ -63,49 +57,39 @@ for (s in c(1:length(samples))){
 
 for (s in c(1:length(samples))){
   extract <- res[res$sampleID == samples[s]]
-  path = paste0(savePath[s], "/21.Fraser/graphs/QQ/")
-  dir.create(path, recursive = TRUE, showWarnings = FALSE)
+  QQpath = paste0(savePath[s], "/21.Fraser/graphs/QQ/")
+  EXpath = paste0(savePath[s], "/21.Fraser/graphs/Expression/")
+  POpath = paste0(savePath[s], "/21.Fraser/graphs/Prediction_vs_Observation/")
+  dir.create(QQpath, recursive = TRUE, showWarnings = FALSE)
+  dir.create(EXpath, recursive = TRUE, showWarnings = FALSE)
+  dir.create(POpath, recursive = TRUE, showWarnings = FALSE)
+
   for (i in c(1:length(extract))){
     if (is.na(extract[i]$hgncSymbol@values)){
-      png(file=paste0(path, samples[s], "-QQ-", i, "-", extract[i]$type, ".png"))
+      png(file=paste0(QQpath, samples[s], ".QQ-", i, ".", extract[i]$type, ".png"))
+      print(plotQQ(fds, result=extract[i]))
+      dev.off()
+
+      png(file=paste0(EXpath, samples[s], ".EX-", i, ".", extract[i]$type, ".png"))
+      print(plotExpression(fds, result=extract[i]))
+      dev.off()
+
+      png(file=paste0(POpath, samples[s], ".PvO-", i, ".", extract[i]$type, ".png"))
+      print(plotExpectedVsObservedPsi(fds, result=extract[i]))
+      dev.off()
     }
     else{
-      png(file=paste0(path, samples[s], "-QQ-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
+      png(file=paste0(QQpath, samples[s], ".QQ-", i, ".", extract[i]$hgncSymbol, ".", extract[i]$type, ".png"))
+      print(plotQQ(fds, result=extract[i]))
+      dev.off()
+
+      png(file=paste0(EXpath, samples[s], ".EX-", i, ".", extract[i]$hgncSymbol, ".", extract[i]$type, ".png"))
+      print(plotQQ(fds, result=extract[i]))
+      dev.off()    
+
+      png(file=paste0(POpath, samples[s], ".PvO-", i, ".", extract[i]$hgncSymbol, ".", extract[i]$type, ".png"))
+      print(plotExpectedVsObservedPsi(fds, result=extract[i]))
+      dev.off()      
     }
-    print(plotQQ(fds, result=extract[i]))
-    dev.off()
   }
-}
-
-# for (s in c(1:length(samples))){
-#   extract <- res[res$sampleID == samples[s]]
-#   write.csv(extract, paste0("./results/", sample, "/", sample, "-result.csv"))
-#   path = paste0("./results/", sample, "/Expression/")
-#   dir.create(path, showWarnings = FALSE)
-#   for (i in c(1:length(extract))){
-#       if (is.na(extract[i]$hgncSymbol@values)){
-#         png(file=paste0(path, "/", sample, "-EX-", i, "-", extract[i]$type, ".png"))
-#       }
-#       else{
-#         png(file=paste0(path, "/", sample, "-EX-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
-#       }
-#       print(plotExpression(fds, result=extract[i]))
-#       dev.off()
-#   }  
-# }
-
-for (s in c(1:length(samples))){
-  extract <- res[res$sampleID == samples[s]]
-  path = paste0(savePath[s], "/21.Fraser/graphs/Pred_vs_Obs/")
-  dir.create(path, recursive = TRUE, showWarnings = FALSE)
-  for (i in c(1:length(extract))) {
-    if (is.na(extract[i]$hgncSymbol@values)){
-      png(file=paste0(path, "/", samples[s], "-PvO-", i, "-", extract[i]$type, ".png"))
-    }
-    else{
-      png(file=paste0(path, "/", samples[s], "-PvO-", i, "-", extract[i]$hgncSymbol, "-", extract[i]$type, ".png"))
-    }
-    print(plotExpectedVsObservedPsi(fds, result=extract[i]))
-    dev.off()
-  }      
 }
