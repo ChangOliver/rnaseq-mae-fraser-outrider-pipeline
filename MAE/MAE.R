@@ -1,31 +1,54 @@
-suppressMessages(library(ggplot2))
-suppressMessages(library(data.table))
-suppressMessages(library(tMAE))
-suppressMessages(library(dplyr))
-suppressMessages(library(stringr))
-suppressMessages(library(MafDb.gnomAD.r2.1.hs37d5))
+# argument parsing --------------------------------------------------------
+library(optparse)
 
-# take arguments (dataDir)
-args <- commandArgs(trailingOnly = TRUE)
-dataDir <- args[[1]]
+option_list = list(
+  make_option(c("-i", "--input"), type="character", default=NULL, 
+              help="input vcf directory path", metavar="character"),
+  make_option(c("-o", "--output"), type="character", default=NULL, 
+              help="output directory path", metavar="character")
+)
+opt_parser = OptionParser(option_list=option_list)
+opt = parse_args(opt_parser)
+opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
+opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
-# extract bam files
-mae.all <- list.files(path = dataDir,
-                      pattern = "*.vcf$",
-                      all.files = TRUE,
-                      recursive = FALSE,
-                      ignore.case = FALSE,
-                      include.dirs = FALSE)
+if (is.null(opt$input) | is.null(opt$output)){
+  print_help(opt_parser)
+  stop("Arguments must be supplied.", call.=FALSE)
+}
 
-mafdb <- MafDb.gnomAD.r2.1.hs37d5 
+if (!file_test("-d", opt$input)){
+  print_help(opt_parser)
+  stop("Input must be a directory.", call.=FALSE)
+}
+
+if (!file_test("-d", opt$output)){
+  dir.create(opt$output)
+}
+
+# main --------------------------------------------------------------------
+library(ggplot2)
+library(data.table)
+library(tMAE)
+library(dplyr)
+library(stringr)
+library(MafDb.gnomAD.r2.1.hs37d5)
+# library(MafDb.gnomAD.r2.1.GRCh38)
+
+# extract vcf files
+mae.all <- list.files(path = opt$input, pattern="vcf$")
+
+# define dataset
 # mafdb <- MafDb.gnomAD.r2.1.GRCh38
-dir.create("MAE_results", showWarnings = FALSE)
+mafdb <- MafDb.gnomAD.r2.1.hs37d5 
 
+# MAE analysis per sample
 for (i in c(1:length(mae.all))){
+  # extract sample name
   sampleID <- str_match(mae.all[i], "(.*?).sorted.dedup.SplitNCigar.recal.bam.ASEcalling.vcf")[2]
 
   # allelic counts generated using ASEReadCounter
-  allelicCountsFile <- paste0(dataDir, '/', mae.all[i])
+  allelicCountsFile <- paste0(opt$input, mae.all[i])
   allelicCounts <- fread(allelicCountsFile)
   
   resMAE <- DESeq4MAE(allelicCounts, minCoverage = 10)
@@ -41,5 +64,5 @@ for (i in c(1:length(mae.all))){
   resMAE <- mutate(resMAE, sampleID = sampleID) %>%
             relocate(sampleID, .before=contig) %>% 
             replace(is.na(.), ".")
-  write.csv(resMAE, paste0('MAE_results/', sampleID, '.MAE.result.csv'), row.names=FALSE)
+  write.csv(resMAE, paste0(opt$output, sampleID, '.MAE.result.csv'), row.names=FALSE)
 }
