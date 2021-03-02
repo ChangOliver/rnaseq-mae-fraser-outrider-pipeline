@@ -1,20 +1,36 @@
-#############################
-# Load libraries
-#############################
-print("Loading libraries...")
-suppressMessages(library(dplyr))
-suppressMessages(library(OUTRIDER))
-suppressMessages(library(biomaRt))
-suppressMessages(library(ggplot2))
-suppressMessages(library(ggrepel))
+# argument parsing --------------------------------------------------------
+library(optparse)
 
-#############################
-# Function declaration
-#############################
+option_list = list(
+  make_option(c("-i", "--input"), type="character", default=NULL, 
+              help="input vcf directory path", metavar="character"),
+  make_option(c("-o", "--output"), type="character", default=NULL, 
+              help="output directory path", metavar="character")
+)
+opt_parser = OptionParser(option_list=option_list)
+opt = parse_args(opt_parser)
+opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
+opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
+
+if (is.null(opt$input) | is.null(opt$output)){
+  print_help(opt_parser)
+  stop("Arguments must be supplied.", call.=FALSE)
+}
+
+if (!file_test("-d", opt$input)){
+  print_help(opt_parser)
+  stop("Input must be a directory.", call.=FALSE)
+}
+
+if (!file_test("-d", opt$output)){
+  dir.create(opt$output)
+}
+
+# Function declaration --------------------------------------------------------
 combine.htseq <- function(cntDir, pat){
   # adapted from https://wiki.bits.vib.be/index.php/NGS_RNASeq_DE_Exercise.4#Combine_individual_HTSeq_files_from_the_.27all.27_mapping_series
   
-  tophat.all <- list.files(path = cntDir, pattern = pat, all.files = TRUE, recursive = TRUE)
+  tophat.all <- list.files(path = cntDir, pattern = pat)
   
   # we choose the 'all' series
   myfiles <- tophat.all
@@ -23,10 +39,10 @@ combine.htseq <- function(cntDir, pat){
   # read each file as array element of DT and rename the last 2 cols
   # we created a list of single sample tables
   for (i in 1:length(myfiles) ) {
-	infile = paste(cntDir, myfiles[i], sep = "/")
-	DT[[myfiles[i]]] <- read.table(infile, header = F, stringsAsFactors = FALSE)
-	cnts <- gsub("(.*)/6.STATS/(.*).htseq-count.txt", "\\1", myfiles[i])
-	colnames(DT[[myfiles[i]]]) <- c("ID", cnts)
+  	infile = paste0(cntDir, myfiles[i])
+  	DT[[myfiles[i]]] <- read.table(infile, header = F, stringsAsFactors = FALSE)
+  	cnts <- gsub("(.*).htseq-count.txt", "\\1", myfiles[i])
+  	colnames(DT[[myfiles[i]]]) <- c("ID", cnts)
   }
   
   # merge all elements based on first ID columns
@@ -49,9 +65,6 @@ combine.htseq <- function(cntDir, pat){
   # take all data rows to a new table
   data.all <- data[grep("^ENS", rownames(data), perl=TRUE, invert=FALSE), ]
   
-  # # write data to file
-  # write.csv(data.all, file = paste0(cntDir, outFile))
-  
   # cleanup intermediate objects
   rm(y, z, i, DT)
 
@@ -59,7 +72,7 @@ combine.htseq <- function(cntDir, pat){
 }
 
 run.OUTRIDER <- function(countDir, ctsTable){
-  #### Load data
+  # Load data
   ctsTable <- tibble::rownames_to_column(ctsTable, "geneID")
   ctsTable <- mutate(ctsTable, geneID = sub("\\..*$", "", geneID))
 
@@ -78,7 +91,7 @@ run.OUTRIDER <- function(countDir, ctsTable){
   ctsMatrix <- data.matrix(ctsTable)[, -1]
   rownames(ctsMatrix) <- ctsTable[,1]
 
-  #### Create OUTRIDER object
+  # Create OUTRIDER object
   ods <- OutriderDataSet(countData=ctsMatrix)
   ods <- filterExpression(ods, minCounts=TRUE, filterGenes=TRUE)
   ods <- OUTRIDER(ods)
@@ -86,60 +99,51 @@ run.OUTRIDER <- function(countDir, ctsTable){
   return(ods)
 }
 
-plot_QQ_ExRank <- function(res, resDir){
+plot_QQ_ExRank <- function(ods, res, resDir){
   
+  # draw aberrant only
   res <- subset(res, res$aberrant)
   if (nrow(res) == 0){
-	# print("No aberrant genes found")
-	return()
+  	return()
   }
   
-  imgPath <- paste0(resDir, "/graphs/")
-  dir.create(paste0(imgPath, "/QQ"), recursive = TRUE, showWarnings = FALSE)
-  dir.create(paste0(imgPath, "/Expression"), recursive = TRUE, showWarnings = FALSE)
+  imgPath <- paste0(resDir, "graphs/")
+  dir.create(paste0(imgPath, "QQ"), recursive = TRUE)
+  dir.create(paste0(imgPath, "Expression"))
 	
   for (i in c(1:nrow(res))){
 	
-	  png(paste0(imgPath, "/QQ/", res[i]$sampleID, ".", res[i]$geneID, ".png"), width = 715, height = 494)
+	  png(paste0(imgPath, "QQ/", res[i]$sampleID, ".", res[i]$geneID, ".png"), width = 715, height = 494)
 	  QQ <- plotQQ(ods, res[i, geneID])
 	  dev.off()
 	
 	  # expression rank of a gene with outlier events
 	  EX <- plotExpressionRank(ods, res[i, geneID], basePlot=TRUE)
-	  ggsave(paste0(imgPath, "/Expression/", res[i]$sampleID, ".", res[i]$geneID, ".png"), width = 9.93, height = 6.86, dpi = 300)
+	  ggsave(paste0(imgPath, "Expression/", res[i]$sampleID, ".", res[i]$geneID, ".png"), width = 9.93, height = 6.86, dpi = 300)
   }
 }
 
-#############################
-# Main
-#############################
-print("Starting analysis")
-args <- commandArgs(trailingOnly = TRUE)
+# main --------------------------------------------------------
+library(dplyr)
+library(OUTRIDER)
+library(biomaRt)
+library(ggplot2)
+library(ggrepel)
 
-dataPath <- args[[1]]
-
-data.all <- combine.htseq(dataPath, "htseq-count.txt$")
+data.all <- combine.htseq(opt$input, "htseq-count.txt$")
   
-#### Run OUTRIDER
+# Run OUTRIDER
 print("Running OUTRIDER analysis...")
-if (file_test("-d", dataPath)){
-	ods <- run.OUTRIDER(dataPath, data.all)
-} else{
-	ods <- readRDS(file=dataPath)
-}
+ods <- run.OUTRIDER(opt$input, data.all)
+odsResult <- results(ods, all = TRUE)
 
-print("extracting result")
-odsResult <- OUTRIDER::results(ods, all = TRUE)
-
+# output results
 print("Dumping results & graphs")
 samples <- unique(odsResult$sampleID)
-for (s in c(1:length(samples))){
-  res_s <- odsResult %>% 
-		filter(grepl(samples[s], sampleID)) %>%
-		replace(is.na(.), ".")
-  savePath <-  paste0(dataPath, "/", samples[s], "/22.OUTRIDER/")
-  dir.create(savePath, showWarnings = FALSE)
-  write.csv(res_s, paste0(savePath, samples[s], '.OUTRIDER.result.csv'), row.names=FALSE)
+samples <- samples[!grepl("Control", samples)]
 
-  plot_QQ_ExRank(res_s, savePath)
+for (s in c(1:length(samples))){
+  res_s <- odsResult %>% filter(grepl(samples[s], sampleID)) %>% replace(is.na(.), ".")
+  write.csv(res_s, paste0(opt$output, samples[s], '.OUTRIDER.result.csv'), row.names=FALSE)
+  plot_QQ_ExRank(ods, res_s, opt$output)
 }
