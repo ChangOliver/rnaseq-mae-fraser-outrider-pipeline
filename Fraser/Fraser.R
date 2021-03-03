@@ -92,14 +92,15 @@ if(opt$graphs){
     }
   }
 
+  QQpath = paste0(opt$output, "graphs/QQ/")
+  EXpath = paste0(opt$output, "graphs/Expression/")
+  POpath = paste0(opt$output, "graphs/Prediction_vs_Observation/")
+  dir.create(QQpath)
+  dir.create(EXpath)
+  dir.create(POpath)
+
   for (s in c(1:length(samples))){
     extract <- res[res$sampleID == samples[s]]
-    QQpath = paste0(opt$output, "graphs/QQ/")
-    EXpath = paste0(opt$output, "graphs/Expression/")
-    POpath = paste0(opt$output, "graphs/Prediction_vs_Observation/")
-    dir.create(QQpath)
-    dir.create(EXpath)
-    dir.create(POpath)
 
     for (i in c(1:length(extract))){
       if (is.na(extract[i]$hgncSymbol@values)){

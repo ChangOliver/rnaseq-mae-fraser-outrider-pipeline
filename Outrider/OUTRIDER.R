@@ -3,9 +3,9 @@ library(optparse)
 
 option_list = list(
   make_option(c("-i", "--input"), type="character", default=NULL, 
-              help="input vcf directory path", metavar="character"),
+              help="input directory of count files", metavar="character"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
-              help="output directory path", metavar="character")
+              help="output directory to store results", metavar="character")
 )
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)

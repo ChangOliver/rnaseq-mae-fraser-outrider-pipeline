@@ -1,23 +1,60 @@
-library(plyr)
-library(tidyverse)
-library(stringr)
-library(biomaRt)
-library(gdata) #for cbindX()
+# argument parsing --------------------------------------------------------
+library(optparse)
 
-# ==== Functions ====
+option_list = list(
+  make_option(c("-m", "--mae"), type="character", default=NULL, 
+              help="input MAE directory", metavar="character"),
+  make_option(c("-f", "--fraser"), type="character", default=NULL, 
+              help="input FRASER directory", metavar="character"),
+  make_option(c("-u", "--outrider"), type="character", default=NULL, 
+              help="input OUTRIDER directory", metavar="character"),                
+  make_option(c("-o", "--output"), type="character", default=NULL, 
+              help="output directory to store results", metavar="character")
+)
+opt_parser = OptionParser(option_list=option_list)
+opt = parse_args(opt_parser)
+
+if (is.null(opt$mae) | is.null(opt$fraser) | is.null(opt$outrider) | is.null(opt$output)){
+  print_help(opt_parser)
+  stop("Input & output must be supplied.", call.=FALSE)
+}
+
+if (!file_test("-d", opt$mae)){
+  print_help(opt_parser)
+  stop("Input MAE must be a directory.", call.=FALSE)
+}
+if (!file_test("-d", opt$fraser)){
+  print_help(opt_parser)
+  stop("Input FRASER must be a directory.", call.=FALSE)
+}
+if (!file_test("-d", opt$outrider)){
+  print_help(opt_parser)
+  stop("Input OUTRIDER must be a directory.", call.=FALSE)
+}
+
+if (!file_test("-d", opt$output)){
+  dir.create(opt$output)
+}
+
+opt$mae <- ifelse(substr(opt$mae, nchar(opt$mae), nchar(opt$mae))=='/', opt$mae, paste0(opt$mae,'/'))
+opt$fraser <- ifelse(substr(opt$fraser, nchar(opt$fraser), nchar(opt$fraser))=='/', opt$fraser, paste0(opt$fraser,'/'))
+opt$outrider <- ifelse(substr(opt$outrider, nchar(opt$outrider), nchar(opt$outrider))=='/', opt$outrider, paste0(opt$outrider,'/'))
+opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
+
+# functions --------------------------------------------------------
 readInput <- function(maeDir, fraserDir, outriderDir, sample){
   # ==== Input FRASER ====
-  fraser <- read.csv(paste0(fraserDir, '/', sample, '.FRASER.result.csv')) %>% #read data table
+  fraser <- read.csv(paste0(fraserDir, sample, '.FRASER.result.csv')) %>% #read data table
             subset(select = -c(X, sampleID)) %>% #remove redundant columns
             rename_all( function(colname) paste0("FRASER_", colname)) %>% #add prefix
             replace(".", NA)
   # ==== Input MAE ====
-  mae <- read.csv(paste0(maeDir, '/', sample, '.MAE.result.csv')) %>% #read data table
+  mae <- read.csv(paste0(maeDir, sample, '.MAE.result.csv')) %>% #read data table
           subset(select = -c(X, sampleID)) %>% #remove redundant columns
           rename_all( function(colname) paste0("MAE_", colname)) %>% #add prefix
           replace(".", NA)
   # ==== Input OUTRIDER ====
-  outrider <- read.csv(paste0(outriderDir, '/', sample, '.OUTRIDER.result.csv')) %>% #read data table
+  outrider <- read.csv(paste0(outriderDir, sample, '.OUTRIDER.result.csv')) %>% #read data table
               subset(select = -c(X, sampleID)) %>% #remove redundant columns
               rename_all( function(colname) paste0("OUTRIDER_", colname)) #add prefix
               # subset(OUTRIDER_aberrant == TRUE)
@@ -229,24 +266,17 @@ mergeAll <- function(mae, fraser, outrider){
   return(merged)
 }
 
+# main --------------------------------------------------------
+library(plyr)
+library(tidyverse)
+library(stringr)
+library(biomaRt)
+library(gdata) #for cbindX()
 
-# ==== Main ====
-# take arguments
-args <- commandArgs(trailingOnly = TRUE)
-maeDir <- args[[1]]
-fraserDir <- args[[2]]
-outriderDir <- args[[3]]
-# maeDir="../MAE/MAE_results"
-# fraserDir="../Fraser/Fraser_results"
-# outriderDir="../Outrider/Outrider_results"
-
-# create directory to store merged results
-dir.create("./merged_results", showWarnings = FALSE)
-
-# extract filenames
-mae.all <- list.files(path = maeDir, pattern = "*.MAE.result.csv$", all.files = TRUE)
 # extract sample names
+mae.all <- list.files(path = opt$mae, pattern = "*.MAE.result.csv$", full.name = FALSE, recursive = FALSE)
 samples <- str_match(mae.all, "(.*?).MAE.result.csv")[, 2]
+
 # define dataset for biomaRt
 ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl") 
 gene.list <- getBM(attributes=c('start_position', 'end_position', 'external_gene_name'), mart=ensembl) %>%
@@ -254,8 +284,9 @@ gene.list <- getBM(attributes=c('start_position', 'end_position', 'external_gene
 
 # loop all samples
 for (s in c(1:length(samples))){
-  print(s)
-  data <- readInput(maeDir, fraserDir, outriderDir, samples[s])
+  print(paste0("merging ", s)
+
+  data <- readInput(opt$mae, opt$fraser, opt$outrider, samples[s])
 
   # merge
   merged_result <- mergeAll(data$mae, data$fraser, data$outrider)
@@ -295,5 +326,5 @@ for (s in c(1:length(samples))){
   }
 
   # write output
-  write_tsv(merged_result, paste0('./merged_results/', samples[s], '.rnaseq.merge.tsv'))
+  write_tsv(merged_result, paste0(opt$output, samples[s], '.rnaseq.merge.tsv'))
 }
