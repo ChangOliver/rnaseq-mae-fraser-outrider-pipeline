@@ -9,12 +9,10 @@ option_list = list(
 )
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
-opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
-opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
 if (is.null(opt$input) | is.null(opt$output)){
   print_help(opt_parser)
-  stop("Arguments must be supplied.", call.=FALSE)
+  stop("Input & output must be supplied.", call.=FALSE)
 }
 
 if (!file_test("-d", opt$input)){
@@ -25,6 +23,9 @@ if (!file_test("-d", opt$input)){
 if (!file_test("-d", opt$output)){
   dir.create(opt$output)
 }
+
+opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
+opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
 # Function declaration --------------------------------------------------------
 combine.htseq <- function(cntDir, pat){

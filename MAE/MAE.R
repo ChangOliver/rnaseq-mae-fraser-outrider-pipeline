@@ -9,12 +9,10 @@ option_list = list(
 )
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
-opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
-opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
 if (is.null(opt$input) | is.null(opt$output)){
   print_help(opt_parser)
-  stop("Arguments must be supplied.", call.=FALSE)
+  stop("Input & output must be supplied.", call.=FALSE)
 }
 
 if (!file_test("-d", opt$input)){
@@ -25,6 +23,9 @@ if (!file_test("-d", opt$input)){
 if (!file_test("-d", opt$output)){
   dir.create(opt$output)
 }
+
+opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
+opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
 # main --------------------------------------------------------------------
 library(ggplot2)
@@ -51,6 +52,7 @@ for (i in c(1:length(mae.all))){
   allelicCountsFile <- paste0(opt$input, mae.all[i])
   allelicCounts <- fread(allelicCountsFile)
   
+  print(paste0("Processing ", sampleID))
   resMAE <- DESeq4MAE(allelicCounts, minCoverage = 10)
   resMAE[, signif := padj < 0.05]
   resMAE[, signif_ALT := signif == TRUE & altRatio >= 0.8]
