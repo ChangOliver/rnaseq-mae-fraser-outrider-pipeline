@@ -292,12 +292,12 @@ for (s in c(1:length(samples))){
   merged_result <- mergeAll(data$mae, data$fraser, data$outrider)
   
   # Post processing of merged_result
-  merged_result <- merged_result %>%
+  merged_result1 <- merged_result %>%
                     replace(is.na(.), ".") %>% # NAs to "."
                     mutate(sampleID = samples[s]) %>%
                     mutate(seqnames = ifelse(MAE_contig == ".", FRASER_seqnames, MAE_contig)) %>%
                     subset(select = -c(MAE_contig, FRASER_seqnames)) %>%
-                    rename(geneID = ifelse(OUTRIDER_geneID == ".", FRASER_hgncSymbol, OUTRIDER_geneID)) %>%
+                    mutate(geneID = ifelse(OUTRIDER_geneID == ".", FRASER_hgncSymbol, OUTRIDER_geneID)) %>%
                     relocate(sampleID, geneID, seqnames) %>%
                     arrange(seqnames, OUTRIDER_start, FRASER_start, MAE_position)
   
