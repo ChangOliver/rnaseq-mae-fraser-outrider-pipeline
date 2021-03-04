@@ -47,12 +47,12 @@ readInput <- function(maeDir, fraserDir, outriderDir, sample){
   fraser <- read.csv(paste0(fraserDir, sample, '.FRASER.result.csv')) %>% #read data table
             subset(select = -c(X, sampleID)) %>% #remove redundant columns
             rename_all( function(colname) paste0("FRASER_", colname)) %>% #add prefix
-            replace(".", NA)
+            na_if(".")
   # ==== Input MAE ====
   mae <- read.csv(paste0(maeDir, sample, '.MAE.result.csv')) %>% #read data table
           subset(select = -c(X, sampleID)) %>% #remove redundant columns
           rename_all( function(colname) paste0("MAE_", colname)) %>% #add prefix
-          replace(".", NA)
+          na_if(".")
   # ==== Input OUTRIDER ====
   outrider <- read.csv(paste0(outriderDir, sample, '.OUTRIDER.result.csv')) %>% #read data table
               subset(select = -c(X, sampleID)) %>% #remove redundant columns
@@ -69,7 +69,7 @@ readInput <- function(maeDir, fraserDir, outriderDir, sample){
                         rename(OUTRIDER_start = start_position) %>% #rename column
                         rename(OUTRIDER_end = end_position) %>% #rename column
                         relocate(OUTRIDER_start, OUTRIDER_end, .after=OUTRIDER_geneID) %>% #reorder column
-                        replace(".", NA)
+                        na_if(".")
                         
   return(list("mae"=mae, "fraser"=fraser, "outrider"=outrider))
 }
@@ -284,7 +284,7 @@ gene.list <- getBM(attributes=c('start_position', 'end_position', 'external_gene
 
 # loop all samples
 for (s in c(1:length(samples))){
-  print(paste0("merging ", s)
+  print(paste0("merging ", samples[s]))
 
   data <- readInput(opt$mae, opt$fraser, opt$outrider, samples[s])
 
