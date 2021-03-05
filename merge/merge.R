@@ -277,10 +277,10 @@ library(gdata) #for cbindX()
 mae.all <- list.files(path = opt$mae, pattern = "*.MAE.result.csv$", full.name = FALSE, recursive = FALSE)
 samples <- str_match(mae.all, "(.*?).MAE.result.csv")[, 2]
 
-# define dataset for biomaRt
+# # define dataset for biomaRt
 ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl") 
-gene.list <- getBM(attributes=c('start_position', 'end_position', 'external_gene_name'), mart=ensembl) %>%
-              arrange(start_position, external_gene_name)
+# gene.list <- getBM(attributes=c('start_position', 'end_position', 'external_gene_name'), mart=ensembl) %>%
+#               arrange(start_position, external_gene_name)
 
 # loop all samples
 for (s in c(1:length(samples))){
@@ -292,7 +292,8 @@ for (s in c(1:length(samples))){
   merged_result <- mergeAll(data$mae, data$fraser, data$outrider)
   
   # Post processing of merged_result
-  merged_result1 <- merged_result %>%
+  merged_result <- merged_result %>%
+                    unique() %>%
                     replace(is.na(.), ".") %>% # NAs to "."
                     mutate(sampleID = samples[s]) %>%
                     mutate(seqnames = ifelse(MAE_contig == ".", FRASER_seqnames, MAE_contig)) %>%
@@ -300,30 +301,6 @@ for (s in c(1:length(samples))){
                     mutate(geneID = ifelse(OUTRIDER_geneID == ".", FRASER_hgncSymbol, OUTRIDER_geneID)) %>%
                     relocate(sampleID, geneID, seqnames) %>%
                     arrange(seqnames, OUTRIDER_start, FRASER_start, MAE_position)
-  
-  for (r in c(1:nrow(merged_result))){
-    if (merged_result$geneID[r] == "."){
-      if (merged_result$MAE_position[r] != "."){
-        for (i in c(1:nrow(gene.list))){
-            if (merged_result$MAE_position[r] > gene.list$start_position[i] & merged_result$MAE_position[r] < gene.list$end_position[i]){
-              merged_result$geneID[r] <- gene.list$external_gene_name[i]
-              break
-            } else if (merged_result$MAE_position[r] < gene.list$start_position[i]){
-              break
-            }
-        }
-      } else if (merged_result$FRASER_start[r] != "."){
-        for (i in c(1:nrow(gene.list))){
-          if (merged_result$FRASER_start[r] > gene.list$start_position[i] & merged_result$FRASER_end[r] < gene.list$end_position[i]){
-            merged_result$geneID[r] <- gene.list$external_gene_name[i]
-            break
-          } else if (merged_result$FRASER_start[r] < gene.list$start_position[i]){
-            break
-          }
-        }
-      }
-    }
-  }
 
   # write output
   write_tsv(merged_result, paste0(opt$output, samples[s], '.rnaseq.merge.tsv'))
