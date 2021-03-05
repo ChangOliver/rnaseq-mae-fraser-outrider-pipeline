@@ -94,10 +94,8 @@ if(opt$graphs){
 
   QQpath = paste0(opt$output, "graphs/QQ/")
   EXpath = paste0(opt$output, "graphs/Expression/")
-  POpath = paste0(opt$output, "graphs/Prediction_vs_Observation/")
   dir.create(QQpath)
   dir.create(EXpath)
-  dir.create(POpath)
 
   for (s in c(1:length(samples))){
     extract <- res[res$sampleID == samples[s]]
@@ -111,10 +109,6 @@ if(opt$graphs){
         png(file=paste0(EXpath, samples[s], ".EX-", i, ".", extract[i]$type, ".png"))
         print(plotExpression(fds, result=extract[i]))
         dev.off()
-
-        png(file=paste0(POpath, samples[s], ".PvO-", i, ".", extract[i]$type, ".png"))
-        print(plotExpectedVsObservedPsi(fds, result=extract[i]))
-        dev.off()
       }
       else{
         png(file=paste0(QQpath, samples[s], ".QQ-", i, ".", extract[i]$type, ".", extract[i]$hgncSymbol, ".png"))
@@ -123,11 +117,7 @@ if(opt$graphs){
 
         png(file=paste0(EXpath, samples[s], ".EX-", i, ".", extract[i]$type, ".", extract[i]$hgncSymbol, ".png"))
         print(plotQQ(fds, result=extract[i]))
-        dev.off()    
-
-        png(file=paste0(POpath, samples[s], ".PvO-", i, ".", extract[i]$type, ".", extract[i]$hgncSymbol, ".png"))
-        print(plotExpectedVsObservedPsi(fds, result=extract[i]))
-        dev.off()      
+        dev.off()     
       }
     }
   }
