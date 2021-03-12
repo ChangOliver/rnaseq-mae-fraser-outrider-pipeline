@@ -12,7 +12,7 @@
 |```ods <- filterExpression()```| 0.268 | 0.000 | 0.269 |
 |```ods <- OUTRIDER(ods)```| 56058.445 |  819.045 | 4541.116 |
 
-## OUTRIDER log
+## OUTRIDER() log
 Thu Mar 11 23:21:26 2021: SizeFactor estimation ...  
 Thu Mar 11 23:21:27 2021: Controlling for confounders ...  
 Using estimated q with: 12. 
