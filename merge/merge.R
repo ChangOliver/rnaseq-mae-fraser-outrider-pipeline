@@ -3,11 +3,11 @@ library(optparse)
 
 option_list = list(
   make_option(c("-m", "--mae"), type="character", default=NULL, 
-              help="input MAE directory", metavar="character"),
+              help="input MAE.result.csv", metavar="character"),
   make_option(c("-f", "--fraser"), type="character", default=NULL, 
-              help="input FRASER directory", metavar="character"),
+              help="input FRASER.result.csv", metavar="character"),
   make_option(c("-u", "--outrider"), type="character", default=NULL, 
-              help="input OUTRIDER directory", metavar="character"),                
+              help="input OUTRIDER.result.csv", metavar="character"),                
   make_option(c("-o", "--output"), type="character", default=NULL, 
               help="output directory to store results", metavar="character")
 )
@@ -19,42 +19,26 @@ if (is.null(opt$mae) | is.null(opt$fraser) | is.null(opt$outrider) | is.null(opt
   stop("Input & output must be supplied.", call.=FALSE)
 }
 
-if (!file_test("-d", opt$mae)){
-  print_help(opt_parser)
-  stop("Input MAE must be a directory.", call.=FALSE)
-}
-if (!file_test("-d", opt$fraser)){
-  print_help(opt_parser)
-  stop("Input FRASER must be a directory.", call.=FALSE)
-}
-if (!file_test("-d", opt$outrider)){
-  print_help(opt_parser)
-  stop("Input OUTRIDER must be a directory.", call.=FALSE)
-}
-
 if (!file_test("-d", opt$output)){
   dir.create(opt$output)
 }
 
-opt$mae <- ifelse(substr(opt$mae, nchar(opt$mae), nchar(opt$mae))=='/', opt$mae, paste0(opt$mae,'/'))
-opt$fraser <- ifelse(substr(opt$fraser, nchar(opt$fraser), nchar(opt$fraser))=='/', opt$fraser, paste0(opt$fraser,'/'))
-opt$outrider <- ifelse(substr(opt$outrider, nchar(opt$outrider), nchar(opt$outrider))=='/', opt$outrider, paste0(opt$outrider,'/'))
 opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
 # functions --------------------------------------------------------
-readInput <- function(maeDir, fraserDir, outriderDir, sample){
+readInput <- function(maeFile, fraserFile, outriderFile){
   # ==== Input FRASER ====
-  fraser <- read.csv(paste0(fraserDir, sample, '.FRASER.result.csv')) %>% #read data table
+  fraser <- read.csv(fraserFile) %>% #read data table
     subset(select = -c(X, sampleID)) %>% #remove redundant columns
     rename_all( function(colname) paste0("FRASER_", colname)) %>% #add prefix
     na_if(".")
   # ==== Input MAE ====
-  mae <- read.csv(paste0(maeDir, sample, '.MAE.result.csv')) %>% #read data table
+  mae <- read.csv(maeFile) %>% #read data table
     subset(select = -c(X, sampleID)) %>% #remove redundant columns
     rename_all( function(colname) paste0("MAE_", colname)) %>% #add prefix
     na_if(".")
   # ==== Input OUTRIDER ====
-  outrider <- read.csv(paste0(outriderDir, sample, '.OUTRIDER.result.csv')) %>% #read data table
+  outrider <- read.csv(outriderFile) %>% #read data table
     subset(select = -c(X, sampleID)) %>% #remove redundant columns
     rename_all( function(colname) paste0("OUTRIDER_", colname)) #add prefix
   # subset(OUTRIDER_aberrant == TRUE)
@@ -113,33 +97,30 @@ library(gdata) #for cbindX()
 library(fuzzyjoin)
 
 # extract sample names
-mae.all <- list.files(path = opt$mae, pattern = "*.MAE.result.csv$", full.name = FALSE, recursive = FALSE)
-samples <- str_match(mae.all, "(.*?).MAE.result.csv")[, 2]
+samples <- str_match(opt$mae, "(.*?).MAE.result.csv")[, 2]
 
 # define dataset for biomaRt
 ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl") 
-gene.list <- getBM(attributes=c('start_position', 'end_position', 'external_gene_name'), mart=ensembl) %>%
-  arrange(start_position, external_gene_name)
+# gene.list <- getBM(attributes=c('start_position', 'end_position', 'external_gene_name'), mart=ensembl) %>%
+#   arrange(start_position, external_gene_name)
 
-# loop all samples
-for (s in c(1:length(samples))){
-  print(paste0("merging ", samples[s]))
-  
-  data <- readInput(opt$mae, opt$fraser, opt$outrider, samples[s])
-  
-  # merge
-  merged_result <- mergeAll(data$mae, data$fraser, data$outrider)
-  
-  # Post processing of merged_result
-  merged_result <- merged_result %>%
-    replace(is.na(.), ".") %>% # NAs to "."
-    mutate(sampleID = samples[s]) %>%
-    mutate(seqnames = ifelse(MAE_contig == ".", FRASER_seqnames, MAE_contig)) %>%
-    subset(select = -c(MAE_contig, FRASER_seqnames)) %>%
-    mutate(geneID = ifelse(OUTRIDER_geneID == ".", FRASER_hgncSymbol, OUTRIDER_geneID)) %>%
-    relocate(sampleID, geneID, seqnames) %>%
-    arrange(seqnames, OUTRIDER_start, FRASER_start, MAE_position)
-  
-  # write output
-  write_tsv(merged_result, paste0(opt$output, samples[s], '.rnaseq.merge.tsv'))
-}
+
+print(paste0("merging ", samples[s]))
+data <- readInput(opt$mae, opt$fraser, opt$outrider)
+
+# merge
+merged_result <- mergeAll(data$mae, data$fraser, data$outrider)
+
+# Post processing of merged_result
+merged_result <- merged_result %>%
+  replace(is.na(.), ".") %>% # NAs to "."
+  mutate(sampleID = samples[s]) %>%
+  mutate(seqnames = ifelse(MAE_contig == ".", FRASER_seqnames, MAE_contig)) %>%
+  subset(select = -c(MAE_contig, FRASER_seqnames)) %>%
+  mutate(geneID = ifelse(OUTRIDER_geneID == ".", FRASER_hgncSymbol, OUTRIDER_geneID)) %>%
+  relocate(sampleID, geneID, seqnames) %>%
+  arrange(seqnames, OUTRIDER_start, FRASER_start, MAE_position)
+
+# write output
+write_tsv(merged_result, paste0(opt$output, samples[s], '.rnaseq.merge.tsv'))
+
