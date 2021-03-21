@@ -41,7 +41,7 @@ library(dplyr)
 library(stringr) # str_match
 
 # extract sample name
-sampleID <- str_match(opt$input, "(.*?).sorted.dedup.SplitNCigar.recal.bam.ASEcalling.vcf")[2]
+sampleID <- str_match(basename(opt$input), "(.*?).sorted.dedup.SplitNCigar.recal.bam.ASEcalling.vcf")[2]
 
 # allelic counts generated using ASEReadCounter
 allelicCounts <- fread(opt$input)

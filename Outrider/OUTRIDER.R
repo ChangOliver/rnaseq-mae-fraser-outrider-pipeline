@@ -113,7 +113,8 @@ plot_QQ_ExRank <- function(ods, res, resDir){
   dir.create(paste0(imgPath, "Expression"))
 	
   for (i in c(1:nrow(res))){
-	
+	  
+    # QQ plot of a gene with outlier events
 	  png(paste0(imgPath, "QQ/", res[i]$sampleID, ".", res[i]$geneID, ".png"), width = 715, height = 494)
 	  QQ <- plotQQ(ods, res[i, geneID])
 	  dev.off()
@@ -134,7 +135,7 @@ library(ggrepel)
 data.all <- combine.htseq(opt$input, "htseq-count.txt$")
   
 # Run OUTRIDER
-print("Running OUTRIDER analysis...")
+print("Running OUTRIDER analysis")
 ods <- run.OUTRIDER(opt$input, data.all)
 odsResult <- results(ods, all = TRUE)
 

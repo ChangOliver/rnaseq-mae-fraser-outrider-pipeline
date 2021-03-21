@@ -49,7 +49,7 @@ library(stringr)
 bam.all <- list.files(path = opt$input, pattern = "dedup.bam$", all.files = TRUE, recursive = TRUE)
 
 # create file table
-dataInfo <- data.table(sampleID = str_match(bam.all, "(.*?).sorted.dedup.bam")[,2], bamFile = paste0(opt$input, bam.all), pairedEnd=TRUE)
+dataInfo <- data.table(sampleID = str_match(basename(bam.all), "(.*?).sorted.dedup.bam")[,2], bamFile = paste0(opt$input, bam.all), pairedEnd=TRUE)
 
 settings <- FraserDataSet(colData=dataInfo, workingDir=opt$tmp)
 register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
