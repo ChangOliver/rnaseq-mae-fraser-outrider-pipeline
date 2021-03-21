@@ -1,4 +1,4 @@
-pkgs <- c('BiocManager', 'plyr', 'tidyverse', 'gdata', 'stringr', 'dplyr', 'data.table',
+pkgs <- c('BiocManager', 'plyr', 'tidyverse', 'stringr', 'dplyr', 'data.table',
 			'tibble', 'ggplot2', 'ggrepel', 'optparse', 'remotes')
 
 install.packages(pkgs)
