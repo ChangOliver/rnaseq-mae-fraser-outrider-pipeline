@@ -7,7 +7,9 @@ option_list = list(
   make_option(c("-f", "--fraser"), type="character", default=NULL, 
               help="input FRASER.result.csv", metavar="character"),
   make_option(c("-u", "--outrider"), type="character", default=NULL, 
-              help="input OUTRIDER.result.csv", metavar="character"),                
+              help="input OUTRIDER.result.csv", metavar="character"),
+  make_option(c("-d", "--dataset"), type="numeric", default=NULL, 
+              help="37 for GRCh37 and 38 for GRCh38", metavar="numeric"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
               help="output directory to store results", metavar="character")
 )
@@ -16,7 +18,12 @@ opt = parse_args(opt_parser)
 
 if (is.null(opt$mae) | is.null(opt$fraser) | is.null(opt$outrider) | is.null(opt$output)){
   print_help(opt_parser)
-  stop("Input & output must be supplied.", call.=FALSE)
+  stop("Input & output must be provided.", call.=FALSE)
+}
+
+if (is.null(opt$dataset)){
+  print_help(opt_parser)
+  stop("Choose a dataset to use.", call.=FALSE)
 }
 
 if (!file_test("-d", opt$output)){
@@ -29,7 +36,7 @@ opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='
 readInput <- function(maeFile, fraserFile, outriderFile){
   
   # ==== Input mart ====
-  mart <- read.csv("mart_export.csv") %>%
+  mart <- read.csv(ifelse(opt$dataset==37, "mart37_export.csv", "mart38_export.csv")) %>%
           rename(OUTRIDER_geneID = GeneName, OUTRIDER_chr=Chromosome, OUTRIDER_start=GeneStart, OUTRIDER_end=GeneEnd)
   
   # ==== Input FRASER ====
@@ -53,7 +60,6 @@ readInput <- function(maeFile, fraserFile, outriderFile){
   
   return(list("mae"=mae, "fraser"=fraser, "outrider"=outrider))
 }
-
 mergeAll <- function(mae, fraser, outrider){
   # create chromosome/contig list
   chromosomes <- sort(unique(append( append(fraser$FRASER_seqnames, mae$MAE_contig), outrider$OUTRIDER_chr )))
@@ -62,19 +68,16 @@ mergeAll <- function(mae, fraser, outrider){
   merged <- data.frame( matrix( ncol = ncol(mae)+ncol(fraser)+ncol(outrider), nrow = 0 ) )
   colnames(merged) <- c( colnames(mae), colnames(fraser), colnames(outrider) )
   
+  # sort
   mae <- arrange(mae, mae$MAE_contig, mae$MAE_position)
   fraser <- arrange(fraser, fraser$FRASER_seqnames, fraser$FRASER_start, fraser$FRASER_end)
   outrider <- arrange(outrider, outrider$OUTRIDER_chr, outrider$OUTRIDER_start, outrider$OUTRIDER_end)
   
   for ( c in c(1:length(chromosomes))){
-    
-    ptr <- vector(mode="list", length=3)
-    names(ptr) <- c("m", "f", "o")
+    ptr <- vector(mode="list", length=5)
+    names(ptr) <- c("m", "f", "o", "mrollback", "frollback")
     ptr[[1]] = ptr[[2]] = ptr[[3]] = 1
-    
-    ptr_rollback <- vector(mode="list", length=2)
-    names(ptr_rollback) <- c("m", "f")
-    ptr_rollback[[1]] = ptr_rollback[[2]] = 0
+    ptr[[4]] = ptr[[5]] = 0
     
     fraser_c<- filter(fraser, FRASER_seqnames==chromosomes[c])
     mae_c <- filter(mae, MAE_contig==chromosomes[c])
@@ -84,17 +87,17 @@ mergeAll <- function(mae, fraser, outrider){
     fraser_c.nrow <- nrow(fraser_c)
     outrider_c.nrow <- nrow(outrider_c)
     
+    pos <- if (ptr$m <= mae_c.nrow) mae_c$MAE_position[ptr$m] else Inf
+    fstart <- if (ptr$f <= fraser_c.nrow) fraser_c$FRASER_start[ptr$f] else Inf
+    fend <- if (ptr$f <= fraser_c.nrow) fraser_c$FRASER_end[ptr$f] else Inf
+    ostart <- if (ptr$o <= outrider_c.nrow) outrider_c$OUTRIDER_start[ptr$o] else Inf
+    oend <- if (ptr$o <= outrider_c.nrow) outrider_c$OUTRIDER_end[ptr$o] else Inf
+    
     while (ptr$m <= mae_c.nrow | ptr$f <= fraser_c.nrow | ptr$o <= outrider_c.nrow){
       
-      pos <- ifelse(ptr$m <= mae_c.nrow, mae_c$MAE_position[ptr$m], Inf)
-      fstart <- ifelse(ptr$f <= fraser_c.nrow, fraser_c$FRASER_start[ptr$f], Inf)
-      fend <- ifelse(ptr$f <= fraser_c.nrow, fraser_c$FRASER_end[ptr$f], Inf)
-      ostart <- ifelse(ptr$o <= outrider_c.nrow, outrider_c$OUTRIDER_start[ptr$o], Inf)
-      oend <- ifelse(ptr$o <= outrider_c.nrow, outrider_c$OUTRIDER_end[ptr$o], Inf)
-      
-      M.in.F <- ifelse(ptr$m <= mae_c.nrow & ptr$f <= fraser_c.nrow, pos > fstart & pos < fend, FALSE)
-      M.in.O <- ifelse(ptr$m <= mae_c.nrow & ptr$o <= outrider_c.nrow, pos > ostart & pos < oend, FALSE)
-      F.in.O <- ifelse(ptr$f <= fraser_c.nrow & ptr$o <= outrider_c.nrow, fstart > ostart & fend < oend, FALSE)
+      M.in.F <- if (ptr$m <= mae_c.nrow & ptr$f <= fraser_c.nrow) (pos > fstart & pos < fend) else FALSE
+      M.in.O <- if (ptr$m <= mae_c.nrow & ptr$o <= outrider_c.nrow) (pos > ostart & pos < oend) else FALSE
+      F.in.O <- if (ptr$f <= fraser_c.nrow & ptr$o <= outrider_c.nrow) (fstart > ostart & fend < oend) else FALSE
       
       if (M.in.F & M.in.O & F.in.O) {
         merged <- rbindlist( list(merged, cbind( mae_c[ ptr$m, ], fraser_c[ ptr$f, ], outrider_c[ ptr$o, ])), fill=TRUE)
@@ -108,45 +111,59 @@ mergeAll <- function(mae, fraser, outrider){
       min <- which.min( c(pos, fstart, ostart))
       
       if (min == 1) {
+        merged <- if (!M.in.F & !M.in.O & !F.in.O) rbindlist(list(merged, mae_c[ptr$m, ]), fill=TRUE) else merged
         ptr$m = ptr$m + 1
-        merged <- ifelse(!M.in.F & !M.in.O & !F.in.O, rbindlist(list(merged, mae_c[ptr$m, ]), fill=TRUE), merged)
+        pos <- if (ptr$m <= mae_c.nrow) mae_c$MAE_position[ptr$m] else Inf
       } 
       else if (min == 2) {
         if (pos < fend) {
-          ptr_rollback$m = ptr$m
+          merged <- if (!M.in.F & !M.in.O & !F.in.O) rbindlist(list(merged, mae_c[ptr$m, ]), fill=TRUE) else merged
+          ptr$mrollback = ptr$m
           ptr$m = ptr$m + 1 
-          merged <- ifelse(!M.in.F & !M.in.O & !F.in.O, rbindlist(list(merged, mae_c[ptr$m, ]), fill=TRUE), merged)
+          pos <- if (ptr$m <= mae_c.nrow) mae_c$MAE_position[ptr$m] else Inf
         } 
         else { 
+            merged <- if (!M.in.F & !M.in.O & !F.in.O) rbindlist(list(merged, fraser_c[ptr$f, ]), fill=TRUE) else merged
             ptr$f = ptr$f + 1 
-            merged <- ifelse(!M.in.F & !M.in.O & !F.in.O, rbindlist(list(merged, fraser_c[ptr$f, ]), fill=TRUE), merged)
-            ptr$m = ifelse(ptr_rollback$m != 0, ptr_rollback$m, ptr$m)
-            ptr_rollback$m = 0
+            ptr$m = if (ptr$mrollback != 0) ptr$mrollback else ptr$m
+            ptr$mrollback = 0
+            pos <- if (ptr$m <= mae_c.nrow) mae_c$MAE_position[ptr$m] else Inf
+            fstart <- if (ptr$f <= fraser_c.nrow) fraser_c$FRASER_start[ptr$f] else Inf
+            fend <- if (ptr$f <= fraser_c.nrow) fraser_c$FRASER_end[ptr$f] else Inf
           }
       } 
       else if (min == 3) {
-        ptr_rollback$m = ifelse(ptr_rollback$m == 0, ptr$m, ptr_rollback$m)
-        ptr_rollback$f = ifelse(ptr_rollback$f == 0, ptr$f, ptr_rollback$m)
+        ptr$mrollback = if (ptr$mrollback == 0) ptr$m else ptr$mrollback
+        ptr$frollback = if (ptr$frollback == 0) ptr$f else ptr$frollback
         if (pos < oend) {
+          merged <- if (!M.in.F & !M.in.O & !F.in.O) rbindlist(list(merged, mae_c[ptr$m, ]), fill=TRUE) else merged
           ptr$m = ptr$m + 1 
-          merged <- ifelse(!M.in.F & !M.in.O & !F.in.O, rbindlist(list(merged, mae_c[ptr$m, ]), fill=TRUE), merged)
+          pos <- if (ptr$m <= mae_c.nrow) mae_c$MAE_position[ptr$m] else Inf
         } 
         else if (fend < oend) {
+          merged <- if (!M.in.F & !M.in.O & !F.in.O) rbindlist(list(merged, fraser_c[ptr$f, ]), fill=TRUE) else merged
           ptr$f = ptr$f + 1 
-          merged <- ifelse(!M.in.F & !M.in.O & !F.in.O, rbindlist(list(merged, fraser_c[ptr$f, ]), fill=TRUE), merged)
+          fstart <- if (ptr$f <= fraser_c.nrow) fraser_c$FRASER_start[ptr$f] else Inf
+          fend <- if (ptr$f <= fraser_c.nrow) fraser_c$FRASER_end[ptr$f] else Inf
         } 
         else {
+          merged <- if (!M.in.F & !M.in.O & !F.in.O) rbindlist(list(merged, outrider_c[ptr$o, ]), fill=TRUE) else merged
           ptr$o = ptr$o + 1
-          merged <- ifelse(!M.in.F & !M.in.O & !F.in.O, rbindlist(list(merged, outrider_c[ptr$o, ]), fill=TRUE), merged)
-          ptr$m = ifelse(ptr_rollback$m != 0, ptr_rollback$m, ptr$m)
-          ptr$f = ifelse(ptr_rollback$f != 0, ptr_rollback$f, ptr$f)
-          ptr_rollback$m = ptr_rollback$f = 0
+          ptr$m = if (ptr$mrollback != 0) ptr$mrollback else ptr$m
+          ptr$f = if (ptr$frollback != 0) ptr$frollback else ptr$f
+          ptr$mrollback = ptr$frollback = 0
+          pos <- if (ptr$m <= mae_c.nrow) mae_c$MAE_position[ptr$m] else Inf
+          fstart <- if (ptr$f <= fraser_c.nrow) fraser_c$FRASER_start[ptr$f] else Inf
+          fend <- if (ptr$f <= fraser_c.nrow) fraser_c$FRASER_end[ptr$f] else Inf
+          ostart <- if (ptr$o <= outrider_c.nrow) outrider_c$OUTRIDER_start[ptr$o] else Inf
+          oend <- if (ptr$o <= outrider_c.nrow) outrider_c$OUTRIDER_end[ptr$o] else Inf
         }
       }
     }
   }
   return(merged)
 }
+
 # main --------------------------------------------------------
 library(plyr)
 library(tidyverse)
@@ -165,12 +182,13 @@ merged_result <- mergeAll(data$mae, data$fraser, data$outrider)
 # Post processing of merged_result
 merged_result <- merged_result %>%
   replace(is.na(.), ".") %>% # NAs to "."
-  mutate(sampleID = samples[s]) %>%
-  mutate(seqnames = ifelse(MAE_contig == ".", FRASER_seqnames, MAE_contig)) %>%
-  subset(select = -c(MAE_contig, FRASER_seqnames)) %>%
+  mutate(sampleID = sample) %>%
+  mutate(seqnames = ifelse(MAE_contig == ".",
+                           ifelse(FRASER_seqnames == ".", OUTRIDER_chr, FRASER_seqnames), MAE_contig)) %>%
   mutate(geneID = ifelse(OUTRIDER_geneID == ".", FRASER_hgncSymbol, OUTRIDER_geneID)) %>%
+  subset(select = -c(MAE_contig, FRASER_seqnames, OUTRIDER_chr, OUTRIDER_geneID)) %>%
   relocate(sampleID, geneID, seqnames) %>%
-  arrange(seqnames, OUTRIDER_start, FRASER_start, MAE_position)
+  arrange(seqnames, MAE_position, FRASER_start, OUTRIDER_start)
 
 # write output
-write_tsv(merged_result, paste0(opt$output, samples[s], '.rnaseq.merge.tsv'))
+write_tsv(merged_result, paste0(opt$output, sample, '.rnaseq.merge.tsv'))
