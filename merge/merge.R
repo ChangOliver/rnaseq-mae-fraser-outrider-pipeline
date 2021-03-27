@@ -109,15 +109,15 @@ mergeAll <- function(mae, fraser, outrider){
         mae_c[ ptr$m, "MAE_tag"] = fraser_c[ ptr$f, "FRASER_tag"] = outrider_c[ ptr$o, "OUTRIDER_tag"] = TRUE
       } 
       else {
-        if (M.in.F) { 
+        if (M.in.F & !mae_c[ptr$m, "MAE_tag"] & !fraser_c[ptr$f, "FRASER_tag"]) { 
           merged <- c(merged, list(cbind( mae_c[ ptr$m, ], fraser_c[ ptr$f, ]))) 
           mae_c[ ptr$m, "MAE_tag"] = fraser_c[ ptr$f, "FRASER_tag"] = TRUE
         }
-        if (M.in.O) { 
+        if (M.in.O & !mae_c[ptr$m, "MAE_tag"] & !outrider_c[ptr$o, "OUTRIDER_tag"]) { 
           merged <- c(merged, list(cbind( mae_c[ ptr$m, ], outrider_c[ ptr$o, ])))
           mae_c[ ptr$m, "MAE_tag"] = outrider_c[ ptr$o, "OUTRIDER_tag"] = TRUE
         }
-        if (F.in.O) { 
+        if (F.in.O & !fraser_c[ptr$f, "FRASER_tag"] & !outrider_c[ptr$o, "OUTRIDER_tag"]) { 
           merged <- c(merged, list(cbind( fraser_c[ ptr$f, ], outrider_c[ ptr$o, ])))
           fraser_c[ ptr$f, "FRASER_tag"] = outrider_c[ ptr$o, "OUTRIDER_tag"] = TRUE
         }
