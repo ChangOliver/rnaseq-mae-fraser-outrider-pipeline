@@ -31,6 +31,7 @@ if (!file_test("-d", opt$output)){
 }
 
 opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
+
 # functions --------------------------------------------------------
 readInput <- function(maeFile, fraserFile, outriderFile){
   # ==== Input mart ====
@@ -195,7 +196,7 @@ library(data.table) #for rbindlist()
 # extract sample name
 sample <- str_match(basename(opt$mae), "(.*?).MAE.result.csv")[, 2]
 
-print(paste0("Merging ", sample))
+message(paste0("Merging ", sample))
 data <- readInput(opt$mae, opt$fraser, opt$outrider)
 
 # merge
