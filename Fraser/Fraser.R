@@ -2,12 +2,10 @@
 library(optparse)
 
 option_list = list(
-  make_option(c("-i", "--input"), type="character", default=NULL, 
-              help="input directory of bam files", metavar="character"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
               help="output directory to store results", metavar="character"),
-  make_option(c("-t", "--tmp"), type="character", default=NULL, 
-              help="temparary directory for intermediate results", metavar="character"),
+  make_option(c("-w", "--work"), type="character", default=NULL, 
+              help="working directory for intermediate results", metavar="character"),
   make_option(c("-c", "--cores"), type="integer", default=10, 
               help="number of cores to use (default is 10 or maximum cores available, whichever is smaller)", metavar="integer"),
   make_option(c("-f", "--FDRcutoff"), type="double", default=0.05, 
@@ -18,42 +16,29 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
-if (is.null(opt$input) | is.null(opt$output) | is.null(opt$tmp)){
+if (is.null(opt$output) | is.null(opt$work)){
   print_help(opt_parser)
-  stop("Input & output must be supplied.", call.=FALSE)
+  stop("workdir & output must be supplied.", call.=FALSE)
 }
 
-if (!file_test("-d", opt$input)){
+if (!file_test("-d", opt$work)){
   print_help(opt_parser)
-  stop("Input must be a directory.", call.=FALSE)
+  stop("workdir must be a directory.", call.=FALSE)
 }
 
 if (!file_test("-d", opt$output)){
   dir.create(opt$output)
 }
 
-if (!file_test("-d", opt$tmp)){
-  dir.create(opt$tmp)
-}
-
-opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
 opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
-opt$tmp <- ifelse(substr(opt$tmp, nchar(opt$tmp), nchar(opt$tmp))=='/', opt$tmp, paste0(opt$tmp,'/'))
+opt$work <- ifelse(substr(opt$work, nchar(opt$work), nchar(opt$work))=='/', opt$work, paste0(opt$work,'/'))
 
 # main --------------------------------------------------------------------
 library(FRASER)
 library(dplyr)
 library(stringr)
 
-# extract bam files
-bam.all <- list.files(path = opt$input, pattern = "dedup.bam$", all.files = TRUE, recursive = TRUE)
-
-# create file table
-dataInfo <- data.table(sampleID = str_match(basename(bam.all), "(.*?).sorted.dedup.bam")[,2], bamFile = paste0(opt$input, bam.all), pairedEnd=TRUE)
-
-settings <- FraserDataSet(colData=dataInfo, workingDir=opt$tmp)
-register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
-fds <- countRNAData(settings)
+fds <- loadFraserDataSet(dir=opt$tmp)
 
 # compute stats
 fds <- calculatePSIValues(fds)
@@ -61,8 +46,9 @@ fds <- calculatePSIValues(fds)
 # filtering junction with low expression
 fds <- filterExpressionAndVariability(fds, minExpressionInOneSample=20, minDeltaPsi=0.0, filter=TRUE)
 
-# use PCA to speed up the tutorial
-fds <- FRASER(fds, q=bestQ(fds, type="psi5"), implementation="PCA")
+q <- c(bestQ(fds, type="psi5"), bestQ(fds, type="psi3"), bestQ(fds, type="theta"))
+names(q) <- c("psi5", "psi3", "theta")
+fds <- FRASER(fds, q=q, implementation="PCA", BPPARAM = bpparam())
 
 # alternatively, we also provide a way to use biomart for the annotation:
 fds <- annotateRanges(fds)
