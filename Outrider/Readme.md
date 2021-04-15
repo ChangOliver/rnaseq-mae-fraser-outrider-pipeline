@@ -2,14 +2,14 @@
 
 | code | user | system | elapsed |
 | ---- | ---- | ------ | ------- |
-|```ctsTable <- tibble::rownames_to_column(ctsTable, "geneID")```         |0.007| 0.000| 0.007|
-|```ctsTable <- mutate(ctsTable, geneID = sub("\\..*$", "", geneID))```   |0.087| 0.000| 0.088|
-|```ensembl <- useEnsembl()```|  2.566 |  0.049 | 19.067 |
-|```queryResult <- getBM()``` | 4.345  | 0.150 | 22.422 |
-|```ctsMatrix <- data.matrix(ctsTable)[, -1]```| 0.184 | 0.000 | 0.185 |
+|```ctsTable <- tibble::rownames_to_column(ctsTable, "geneID")```         |0.004| 0.000| 0.005|
+|```ctsTable <- mutate(ctsTable, geneID = sub("\\..*$", "", geneID))```   |0.067| 0.000| 0.067|
+|```ensembl <- useEnsembl()```|  1.86 |  0.026 | 48.025 |
+|```queryResult <- getBM()``` | 1.962  | 0.086 | 58.715 |
+|```ctsMatrix <- data.matrix(ctsTable)[, -1]```| 0.389 | 0.016 | 0.406 |
 |```rownames(ctsMatrix) <- ctsTable[,1]```| 0.001 | 0.000 | 0.001 |
-|```ods <- OutriderDataSet(countData=ctsMatrix)```| 0.922 | 0.000 | 0.923 |
-|```ods <- filterExpression()```| 0.268 | 0.000 | 0.269 |
+|```ods <- OutriderDataSet(countData=ctsMatrix)```| 0.685 | 0.040 | 0.812 |
+|```ods <- filterExpression()```| 0.177 | 0.000 | 0.177 |
 |```ods <- OUTRIDER(ods)```| 56058.445 |  819.045 | 4541.116 |
 
 ## OUTRIDER() log
