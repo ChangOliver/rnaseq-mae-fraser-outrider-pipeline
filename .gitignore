@@ -1,5 +1,5 @@
-.csv
-.png
-.txt
-.xlsx
-.pptx
+*.csv
+*.png
+*.txt
+*.xlsx
+*.pptx
