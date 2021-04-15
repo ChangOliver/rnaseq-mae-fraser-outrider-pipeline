@@ -109,12 +109,12 @@ plot.volcano <- function(resList, resDir, case, fcCutoff, padjCutoff){
     theme(legend.position = "none", 
           plot.title = element_text(size = rel(1.5), hjust = 0.5), 
           axis.title = element_text(size = rel(1.25)))
-  ggsave(paste0(imgPath, case, "-volcano.png"), width = 9.93, height = 6.86, dpi = 300)
+  ggsave(paste0(imgPath, case, ".volcano.png"), width = 9.93, height = 6.86, dpi = 300)
   
   label_volcano <- volcano + geom_label_repel(data = filter(resList, group != "B"), 
                                               aes(label = as.character(name)), 
                                               size = 3) 
-  ggsave(paste0(imgPath, case, "-label_volcano.png"), width = 9.93, height = 6.86, dpi =300)
+  ggsave(paste0(imgPath, case, ".label.volcano.png"), width = 9.93, height = 6.86, dpi =300)
   
   return(resList)
 }
