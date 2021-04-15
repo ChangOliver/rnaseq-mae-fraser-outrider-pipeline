@@ -5,7 +5,9 @@ option_list = list(
   make_option(c("-i", "--input"), type="character", default=NULL, 
               help="input directory of count files", metavar="character"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
-              help="output directory to store results", metavar="character")
+              help="output directory to store results", metavar="character"),
+  make_option(c("-c", "--cores"), type="integer", default=10, 
+              help="number of cores to use (default is 10 or maximum cores available, whichever is smaller)", metavar="integer")
 )
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
@@ -95,7 +97,7 @@ run.OUTRIDER <- function(countDir, ctsTable){
   # Create OUTRIDER object
   ods <- OutriderDataSet(countData=ctsMatrix)
   ods <- filterExpression(ods, minCounts=TRUE, filterGenes=TRUE)
-  ods <- OUTRIDER(ods)
+  ods <- OUTRIDER(ods, BPPARAM = bpparam())
   
   return(ods)
 }
@@ -131,6 +133,8 @@ library(OUTRIDER)
 library(biomaRt)
 library(ggplot2)
 library(ggrepel)
+
+register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
 
 data.all <- combine.htseq(opt$input, "htseq-count.txt$")
   
