@@ -1,5 +1,5 @@
 # argument parsing --------------------------------------------------------
-library(optparse)
+suppressMessages(library(optparse))
 
 option_list = list(
   make_option(c("-i", "--input"), type="character", default=NULL, 
@@ -22,10 +22,10 @@ if (is.null(opt$dataset)){
   print_help(opt_parser)
   stop("Specify a dataset to use.", call.=FALSE)
 } else if (opt$dataset == 37){
-  library(MafDb.gnomAD.r2.1.hs37d5)
+  suppressMessages(library(MafDb.gnomAD.r2.1.hs37d5))
   mafdb <- MafDb.gnomAD.r2.1.hs37d5 
 } else if (opt$dataset == 38){
-  library(MafDb.gnomAD.r2.1.GRCh38)
+  suppressMessages(library(MafDb.gnomAD.r2.1.GRCh38))
   mafdb <- MafDb.gnomAD.r2.1.GRCh38
 }
 
@@ -36,12 +36,12 @@ if (!file_test("-d", opt$output)){
 opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
 # main --------------------------------------------------------------------
-library(tMAE)
-library(dplyr)
-library(stringr) # str_match
+suppressMessages(library(tMAE))
+suppressMessages(library(dplyr))
+suppressMessages(library(stringr)) # str_match
 
 # extract sample name
-sampleID <- str_match(basename(opt$input), "(.*?).vcf")[2] # sampleID.sorted.dedup.SplitNCigar.recal.bam.ASEcalling
+sampleID <- str_match(basename(opt$input), "(.*?).sorted.dedup.SplitNCigar.recal.bam.ASEcalling.vcf")[2] # sampleID.sorted.dedup.SplitNCigar.recal.bam.ASEcalling
 
 # allelic counts generated using ASEReadCounter
 allelicCounts <- fread(opt$input)

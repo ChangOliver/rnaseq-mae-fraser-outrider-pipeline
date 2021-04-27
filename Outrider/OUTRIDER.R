@@ -1,5 +1,5 @@
 # argument parsing --------------------------------------------------------
-library(optparse)
+suppressMessages(library(optparse))
 
 option_list = list(
   make_option(c("-i", "--input"), type="character", default=NULL, 
@@ -128,11 +128,11 @@ plot_QQ_ExRank <- function(ods, res, resDir){
 }
 
 # main --------------------------------------------------------
-library(dplyr)
-library(OUTRIDER)
-library(biomaRt)
-library(ggplot2)
-library(ggrepel)
+suppressMessages(library(dplyr))
+suppressMessages(library(OUTRIDER))
+suppressMessages(library(biomaRt))
+suppressMessages(library(ggplot2))
+suppressMessages(library(ggrepel))
 
 register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
 

@@ -1,5 +1,5 @@
 # argument parsing --------------------------------------------------------
-library(optparse)
+suppressMessages(library(optparse))
 
 option_list = list(
   make_option(c("-i", "--input"), type="character", default=NULL, 
@@ -51,11 +51,11 @@ if (opt$graphs){
 }
 
 # main --------------------------------------------------------------------
-library(FRASER)
-library(dplyr)
-library(stringr)
-library(foreach)
-library(doParallel)
+suppressMessages(library(FRASER))
+suppressMessages(library(dplyr))
+suppressMessages(library(stringr))
+suppressMessages(library(foreach))
+suppressMessages(library(doParallel))
 
 register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
 
