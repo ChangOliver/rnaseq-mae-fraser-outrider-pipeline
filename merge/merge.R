@@ -63,7 +63,7 @@ readInput <- function(maeFile, fraserFile, outriderFile){
   
   return(list("mae"=mae, "fraser"=fraser, "outrider"=outrider))
 }
-mergeAll <- function(mae, fraser, outrider){
+mergeAll <- function(mae, fraser, outrider){ 
   # create chromosome/contig list
   chromosomes <- sort(unique( append(fraser$FRASER_seqnames, mae$MAE_contig) ))
   
@@ -194,7 +194,7 @@ library(stringr)
 library(data.table) #for rbindlist()
 
 # extract sample name
-sample <- str_match(basename(opt$mae), "(.*?).MAE.result.csv")[, 2]
+sample <- str_match(basename(opt$fraser), "(.*?).FRASER.result.csv")[, 2]
 
 message(paste0("Merging ", sample))
 data <- readInput(opt$mae, opt$fraser, opt$outrider)
@@ -207,7 +207,8 @@ merged_result <- mergeAll(data$mae, data$fraser, data$outrider) %>%
                geneID = ifelse(OUTRIDER_geneID == ".", FRASER_hgncSymbol, OUTRIDER_geneID)) %>% # add columns
         subset(select = -c(MAE_contig, FRASER_seqnames, OUTRIDER_chr, OUTRIDER_geneID, MAE_tag, FRASER_tag, OUTRIDER_tag)) %>% # remove columns
         relocate(sampleID, geneID, seqnames, starts_with("MAE"), starts_with("FRASER")) %>% # order columns
-        arrange(seqnames, MAE_position, FRASER_start, OUTRIDER_start) # sort rows
+        arrange(seqnames, geneID, MAE_position, FRASER_start, OUTRIDER_start) %>% # sort rows
+        replace(is.na(.), ".")
 
 # write output
 write_tsv(merged_result, paste0(opt$output, sample, '.rnaseq.merge.tsv'))
