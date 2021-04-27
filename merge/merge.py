@@ -104,18 +104,14 @@ def merge(mae, fraser, outrider):
 						'OUTRIDER_aberrant': 'boolean', 'OUTRIDER_AberrantBySample': 'Int64', 'OUTRIDER_AberrantByGene': 'Int64'
 					})
 
-	res["sampleID"] = sample
-
 	res[["FRASER_hgncSymbol", "OUTRIDER_geneID", "MAE_contig", "FRASER_seqnames", "OUTRIDER_chr"]] = res[["FRASER_hgncSymbol", "OUTRIDER_geneID", "MAE_contig", "FRASER_seqnames", "OUTRIDER_chr"]].fillna(".")
 
+	res["sampleID"] = sample
 	res["seqnames"] = np.select([ res.MAE_contig != ".", res.FRASER_seqnames != ".", res.OUTRIDER_chr != "."], [res.MAE_contig, res.FRASER_seqnames, res.OUTRIDER_chr], default=None)
-	res.drop('MAE_contig', inplace=True, axis=1)
-	res.drop('FRASER_seqnames', inplace=True, axis=1)
-	res.drop('OUTRIDER_chr', inplace=True, axis=1)
-
 	res["geneID"] = np.select([ res.FRASER_hgncSymbol != ".", res.OUTRIDER_geneID != "."], [res.FRASER_hgncSymbol, res.OUTRIDER_geneID], default=None)
-	res.drop('OUTRIDER_geneID', inplace=True, axis=1)
-
+	
+	res.drop(['MAE_contig', 'FRASER_seqnames', 'OUTRIDER_chr', 'OUTRIDER_geneID'], inplace=True, axis=1)
+	
 	# sort & arrange
 	res.sort_values(by=["seqnames", "geneID", "MAE_position", "FRASER_start", "OUTRIDER_start"], inplace=True, na_position="last")
 	cols = res.columns.tolist()
