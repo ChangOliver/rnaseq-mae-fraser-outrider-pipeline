@@ -3,4 +3,4 @@
 *.txt
 *.xlsx
 *.tsv
-R/*
+merge/R/*
