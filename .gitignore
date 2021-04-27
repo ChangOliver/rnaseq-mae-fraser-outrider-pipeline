@@ -2,5 +2,5 @@
 *.png
 *.txt
 *.xlsx
-*.pptx
 *.tsv
+R/*
