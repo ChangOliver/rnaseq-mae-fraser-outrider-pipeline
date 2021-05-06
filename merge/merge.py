@@ -107,7 +107,7 @@ def merge(mae, fraser, outrider):
 	res[["FRASER_hgncSymbol", "OUTRIDER_geneID", "MAE_contig", "FRASER_seqnames", "OUTRIDER_chr"]] = res[["FRASER_hgncSymbol", "OUTRIDER_geneID", "MAE_contig", "FRASER_seqnames", "OUTRIDER_chr"]].fillna(".")
 
 	res["sampleID"] = sample
-	res["seqnames"] = np.select([ res.MAE_contig != ".", res.FRASER_seqnames != ".", res.OUTRIDER_chr != "."], [res.MAE_contig, res.FRASER_seqnames, res.OUTRIDER_chr], default=None)
+	res["chr"] = np.select([ res.MAE_contig != ".", res.FRASER_seqnames != ".", res.OUTRIDER_chr != "."], [res.MAE_contig, res.FRASER_seqnames, res.OUTRIDER_chr], default=None)
 	res["geneID"] = np.select([ res.FRASER_hgncSymbol != ".", res.OUTRIDER_geneID != "."], [res.FRASER_hgncSymbol, res.OUTRIDER_geneID], default=None)
 	
 	res.drop(['MAE_contig', 'FRASER_seqnames', 'OUTRIDER_chr', 'OUTRIDER_geneID'], inplace=True, axis=1)
