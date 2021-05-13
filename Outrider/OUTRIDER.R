@@ -111,8 +111,8 @@ plot_QQ_ExRank <- function(ods, res, resDir){
   }
   
   imgPath <- paste0(resDir, "graphs/")
-  dir.create(paste0(imgPath, "QQ"), recursive = TRUE)
-  dir.create(paste0(imgPath, "Expression"))
+  dir.create(paste0(imgPath, "QQ"), recursive = TRUE, showWarnings = FALSE)
+  dir.create(paste0(imgPath, "Expression"), showWarnings = FALSE)
 	
   for (i in c(1:nrow(res))){
 	  
@@ -132,7 +132,6 @@ suppressMessages(library(dplyr))
 suppressMessages(library(OUTRIDER))
 suppressMessages(library(biomaRt))
 suppressMessages(library(ggplot2))
-suppressMessages(library(ggrepel))
 
 register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
 
