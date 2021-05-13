@@ -113,7 +113,7 @@ def merge(mae, fraser, outrider):
 	res.drop(['MAE_contig', 'FRASER_seqnames', 'OUTRIDER_chr', 'OUTRIDER_geneID'], inplace=True, axis=1)
 	
 	# sort & arrange
-	res.sort_values(by=["seqnames", "geneID", "MAE_position", "FRASER_start", "OUTRIDER_start"], inplace=True, na_position="last")
+	res.sort_values(by=["chr", "geneID", "MAE_position", "FRASER_start", "OUTRIDER_start"], inplace=True, na_position="last")
 	cols = res.columns.tolist()
 	cols = cols[-3:] + cols[:-3]
 	res = res[cols]
