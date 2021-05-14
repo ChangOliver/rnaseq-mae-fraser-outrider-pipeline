@@ -12,6 +12,8 @@ option_list = list(
               help="number of cores to use (default is 10 or maximum cores available, whichever is smaller)", metavar="integer"),
   make_option(c("-f", "--FDR"), type="double", default=0.05, 
               help="FDRcutoffs (default is 0.05)", metavar="double"),
+  make_option(c("-p", "--dPSI"), type="double", default=0.3, 
+              help="deltaPsiCutoffs (default is 0.3)", metavar="double"),
   make_option(c("-g", "--graphs"), type="logical", default=TRUE, 
               help="TRUE to output graphs or FALSE to turn off (default is TRUE)", metavar="logical")
 )
@@ -83,7 +85,7 @@ fds <- annotateRanges(fds)
 saveFraserDataSet(fds, dir=opt$work)
 
 # get results: we recommend to use an FDR cutoff 0.05
-res <- results(fds, zScoreCutoff=NA, padjCutoff=opt$FDRcutoff, deltaPsiCutoff=0.3)
+res <- results(fds, zScoreCutoff=NA, padjCutoff=opt$FDR, deltaPsiCutoff=opt$dPSI)
 
 # output results & graphs by sample
 samples <- unique(res$sampleID)
@@ -93,7 +95,7 @@ types = c("theta", "psi5", "psi3")
 cl = makeCluster(opt$core)
 registerDoParallel(cl)
 
-system.time( foreach (s = 1:length(samples) ) %dopar% {
+foreach (s = 1:length(samples) ) %dopar% {
   library(FRASER)
   library(dplyr)
   
@@ -104,7 +106,11 @@ system.time( foreach (s = 1:length(samples) ) %dopar% {
     
     for (type in types){
       png(file=paste0(VCpath, samples[s], ".Volcano.", type, ".png"))
-      print(plotVolcano(fds, sampleID=samples[s], type=type))
+      print(plotVolcano(fds, sampleID=samples[s], type=type, padjCutoff=opt$FDR, deltaPsiCutoff=opt$dPSI))
+      dev.off()
+
+      png(file=paste0(VCpath, samples[s], ".Volcano.", type, ".label.png"))
+      print(plotVolcano(fds, sampleID=samples[s], type=type, label="aberrant", padjCutoff=opt$FDR, deltaPsiCutoff=opt$dPSI))
       dev.off()
     }
     
@@ -131,6 +137,6 @@ system.time( foreach (s = 1:length(samples) ) %dopar% {
       }
     }  
   }
-})
+}
 
 stopCluster(cl)
