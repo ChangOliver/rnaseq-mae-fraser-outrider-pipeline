@@ -2,8 +2,8 @@
 library(optparse)
 
 option_list = list(
-  make_option(c("-i", "--input"), type="character", default=NULL, 
-              help="input directory of htseq-count files", metavar="character"),
+  make_option(c("-i", "--control"), type="character", default=NULL, 
+              help="input directory of control htseq-count files", metavar="character"),
   make_option(c("-c", "--case"), type="character", default=NULL, 
               help="case file to be processed", metavar="character"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
@@ -16,21 +16,21 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
-if (is.null(opt$input) | is.null(opt$output) | is.null(opt$case) ){
+if (is.null(opt$control) | is.null(opt$output) | is.null(opt$case) ){
   print_help(opt_parser)
-  stop("Input, case & output must be supplied.", call.=FALSE)
+  stop("Control, case & output must be supplied.", call.=FALSE)
 }
 
-if (!file_test("-d", opt$input)){
+if (!file_test("-d", opt$control)){
   print_help(opt_parser)
-  stop("Input must be a directory.", call.=FALSE)
+  stop("Control must be a directory.", call.=FALSE)
 }
 
 if (!file_test("-d", opt$output)){
   dir.create(opt$output)
 }
 
-opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
+opt$control <- ifelse(substr(opt$control, nchar(opt$control), nchar(opt$control))=='/', opt$control, paste0(opt$control,'/'))
 opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
 # functions --------------------------------------------------------
@@ -48,12 +48,11 @@ get.translation <- function(res, col){
 get.count <- function(ctrlDir, case){
   
   # Get htseq-count files
-  ctrl <- grep("RNA-Control-*",list.files(ctrlDir),value=TRUE)
-  case <- basename(case)
+  ctrl <- paste0(ctrlDir, list.files(ctrlDir))
   files <- append(ctrl, case)
   
   # Extract id
-  names <- append(sub("(.*).htseq-count.txt", "\\1", ctrl), sub("(.*).htseq-count.txt", "\\1", case))
+  names <- append(sub("\\..*", "", basename(ctrl)), sub("\\..*", "", basename(case)))
   
   # Mark case or control
   conditions <- rep("Control", times=length(files))
@@ -63,12 +62,12 @@ get.count <- function(ctrlDir, case){
   table <- data.frame(sampleName = names, fileName = files, condition = conditions)
   table$condition <- relevel(factor(table$condition), ref = "Control")
   
-  return(list("table" = table, "condition" = conditions, "names" = names))
+  return(list("table" = table, "condition" = conditions))
 }
-run.DESeq2 <- function(dir, table, condition){
+run.DESeq2 <- function(table, condition){
   
   # Create DESeq object
-  ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = table, directory = dir, design= ~ condition)
+  ddsHTSeq <- DESeqDataSetFromHTSeqCount(sampleTable = table, design= ~ condition)
   
   # Run differential expression and save dds object
   ddsHTSeq <- DESeq(ddsHTSeq, minReplicatesForReplace=Inf)
@@ -84,6 +83,7 @@ extract.result <- function(dds){
   res <- subset(res, !is.na(res$padj))
   res[ , "name"] <- rownames(res)
   res <- rownames_to_column(res[c(7, 1:6)]) %>% get.translation(2)
+  colnames(res)[1] <- "ensembl"
 
   return(res)
 }
@@ -126,12 +126,12 @@ library(tibble) #rownames_to_column
 library(ggplot2)
 library(ggrepel)
 
-case <- sub("(.*).htseq-count.txt", "\\1", basename(opt$case))
+case <- sub("\\..*", "", basename(opt$case))
 
 # Fetch htseq data
 print(paste0("Running DESeq2 analysis on ", case))
-returnVal <- get.count(opt$input, opt$case)
-dds <- run.DESeq2(opt$input, returnVal$table, returnVal$condition)
+returnVal <- get.count(opt$control, opt$case)
+dds <- run.DESeq2(returnVal$table, returnVal$condition)
 
 message("extracting result")
 desResult <- extract.result(dds)
