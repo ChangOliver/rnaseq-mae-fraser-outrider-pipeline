@@ -2,13 +2,15 @@
 suppressMessages(library(optparse))
 
 option_list = list(
-  make_option(c("-i", "--input"), type="character", default=NULL, 
-              help="input directory of bam files", metavar="character"),
+  make_option(c("-i", "--case"), type="character", default=NULL, 
+              help="input directory of case bam files", metavar="character"),
+  make_option(c("-c", "--control"), type="character", default=NULL, 
+              help="input directory of control bam files", metavar="character"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
               help="output directory to store results", metavar="character"),
   make_option(c("-w", "--work"), type="character", default=NULL, 
               help="working directory for intermediate results", metavar="character"),
-  make_option(c("-c", "--cores"), type="integer", default=10, 
+  make_option(c("-t", "--cores"), type="integer", default=10, 
               help="number of cores to use (default is 10 or maximum cores available, whichever is smaller)", metavar="integer"),
   make_option(c("-f", "--FDR"), type="double", default=0.05, 
               help="FDRcutoffs (default is 0.05)", metavar="double"),
@@ -20,14 +22,14 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
-if (is.null(opt$input) | is.null(opt$output) | is.null(opt$work)){
+if (is.null(opt$case) | is.null(opt$control) | is.null(opt$output) | is.null(opt$work)){
   print_help(opt_parser)
-  stop("Input, workdir & output must be supplied.", call.=FALSE)
+  stop("Cases, controls, workdir & output must be supplied.", call.=FALSE)
 }
 
-if (!file_test("-d", opt$input)){
+if (!file_test("-d", opt$case) | !file_test("-d", opt$control)){
   print_help(opt_parser)
-  stop("Input must be a directory.", call.=FALSE)
+  stop("Cases and controls must be in a directory.", call.=FALSE)
 }
 
 if (!file_test("-d", opt$work)){
@@ -38,7 +40,8 @@ if (!file_test("-d", opt$output)){
   dir.create(opt$output)
 }
 
-opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
+opt$case <- ifelse(substr(opt$case, nchar(opt$case), nchar(opt$case))=='/', opt$case, paste0(opt$case,'/'))
+opt$control <- ifelse(substr(opt$control, nchar(opt$control), nchar(opt$control))=='/', opt$control, paste0(opt$control,'/'))
 opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 opt$work <- ifelse(substr(opt$work, nchar(opt$work), nchar(opt$work))=='/', opt$work, paste0(opt$work,'/'))
 
@@ -62,10 +65,12 @@ suppressMessages(library(doParallel))
 register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
 
 # extract bam files
-bam.all <- list.files(path = opt$input, pattern = "sorted.dedup.bam$", all.files = TRUE, recursive = TRUE)
+case.bam <- paste0( opt$case, list.files(path = opt$case, pattern = ".bam$", all.files = TRUE, recursive = TRUE))
+control.bam <- paste0( opt$control, list.files(path = opt$control, pattern = ".bam$", all.files = TRUE, recursive = TRUE))
+bam.all <- append(case.bam, control.bam)
 
 # create file table
-dataInfo <- data.table(sampleID = str_match(basename(bam.all), "(.*?).sorted.dedup.bam")[,2], bamFile = paste0(opt$input, bam.all), pairedEnd=TRUE)
+dataInfo <- data.table(sampleID = sub("\\..*", "", basename(bam.all)), bamFile = bam.all, pairedEnd=TRUE)
 
 settings <- FraserDataSet(colData=dataInfo, workingDir=opt$work)
 fds <- countRNAData(settings, NcpuPerSample = min(opt$cores, multicoreWorkers()))
@@ -88,8 +93,7 @@ saveFraserDataSet(fds, dir=opt$work)
 res <- results(fds, zScoreCutoff=NA, padjCutoff=opt$FDR, deltaPsiCutoff=opt$dPSI)
 
 # output results & graphs by sample
-samples <- unique(res$sampleID)
-samples <- samples[!grepl("Control", samples)]
+samples <- sub("\\..*", "", basename(case.bam))
 types = c("theta", "psi5", "psi3")
 
 cl = makeCluster(opt$core)
