@@ -41,7 +41,7 @@ suppressMessages(library(dplyr))
 suppressMessages(library(stringr)) # str_match
 
 # extract sample name
-sampleID <- str_match(basename(opt$input), "(.*?).sorted.dedup.SplitNCigar.recal.bam.ASEcalling.vcf")[2] # sampleID.sorted.dedup.SplitNCigar.recal.bam.ASEcalling
+sampleID <- sub("\\..*", "", basename(opt$input))
 
 # allelic counts generated using ASEReadCounter
 allelicCounts <- fread(opt$input)
