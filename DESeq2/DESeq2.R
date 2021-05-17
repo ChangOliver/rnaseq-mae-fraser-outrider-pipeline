@@ -2,10 +2,10 @@
 library(optparse)
 
 option_list = list(
-  make_option(c("-i", "--control"), type="character", default=NULL, 
+  make_option(c("-i", "--case"), type="character", default=NULL, 
+              help="input case file to be processed", metavar="character"),
+  make_option(c("-c", "--control"), type="character", default=NULL, 
               help="input directory of control htseq-count files", metavar="character"),
-  make_option(c("-c", "--case"), type="character", default=NULL, 
-              help="case file to be processed", metavar="character"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
               help="output directory to store results", metavar="character"),
   make_option(c("-f", "--FC"), type="double", default=2.5, 
