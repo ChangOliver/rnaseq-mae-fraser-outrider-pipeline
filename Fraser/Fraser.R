@@ -136,7 +136,7 @@ foreach (s = 1:length(samples) ) %dopar% {
         dev.off()
         
         png(file=paste0(EXpath, samples[s], ".EX-", i, ".", extract[i]$type, ".", extract[i]$hgncSymbol, ".png"))
-        print(plotQQ(fds, result=extract[i]))
+        print(plotExpression(fds, result=extract[i]))
         dev.off()     
       }
     }  
