@@ -22,7 +22,7 @@ if (is.null(opt$case) | is.null(opt$output) | is.null(opt$work)){
 }
 
 if (!file_test("-d", opt$work)){
-  dir.create(opt$work)
+  stop("Workdir does not exist.", call.=FALSE)
 }
 
 if (!file_test("-d", opt$output)){
