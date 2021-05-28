@@ -32,14 +32,8 @@ if (!file_test("-d", opt$output)){
 opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 opt$work <- ifelse(substr(opt$work, nchar(opt$work), nchar(opt$work))=='/', opt$work, paste0(opt$work,'/'))
 
-dir.create(paste0(opt$output, "graphs"))
-VCpath = paste0(opt$output, "graphs/Volcano/")
-QQpath = paste0(opt$output, "graphs/QQ/")
-EXpath = paste0(opt$output, "graphs/Expression/")
+VCpath = paste0(opt$output, "Volcano/")
 dir.create(VCpath)
-dir.create(QQpath)
-dir.create(EXpath)
-
 
 # main --------------------------------------------------------------------
 suppressMessages(library(FRASER))
