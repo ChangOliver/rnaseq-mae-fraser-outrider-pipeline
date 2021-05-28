@@ -52,7 +52,7 @@ types = c("theta", "psi5", "psi3")
 if (sample %in% res$sampleID ){
 
   res_s <- res[res$sampleID == sample] %>% replace(is.na(.), ".")
-  write.csv(res_s, paste0(opt$output, sample, '.FRASER.result.csv'), row.names=FALSE)
+  write.csv(res_s, paste0(opt$output, sample, '.FRASER.adjusted.result.csv'), row.names=FALSE)
 
   for (type in types){
     png(file=paste0(VCpath, sample, ".Volcano.", type, ".png"))
