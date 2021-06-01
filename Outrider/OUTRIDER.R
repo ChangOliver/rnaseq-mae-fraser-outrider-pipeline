@@ -2,60 +2,81 @@
 suppressMessages(library(optparse))
 
 option_list = list(
-  make_option(c("-i", "--input"), type="character", default=NULL, 
-              help="input directory of count files", metavar="character"),
+  make_option(c("-i", "--case"), type="character", default=NULL, 
+              help="input directory of case count files", metavar="character"),
+  make_option(c("-c", "--control"), type="character", default=NULL, 
+              help="input directory of control count files", metavar="character"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
               help="output directory to store results", metavar="character"),
-  make_option(c("-c", "--cores"), type="integer", default=10, 
+  make_option(c("-t", "--cores"), type="integer", default=10, 
               help="number of cores to use (default is 10 or maximum cores available, whichever is smaller)", metavar="integer")
 )
 opt_parser = OptionParser(option_list=option_list)
 opt = parse_args(opt_parser)
 
-if (is.null(opt$input) | is.null(opt$output)){
+if (is.null(opt$case) | is.null(opt$control) | is.null(opt$output)){
   print_help(opt_parser)
-  stop("Input & output must be supplied.", call.=FALSE)
+  stop("Case, control & output must be supplied.", call.=FALSE)
 }
 
-if (!file_test("-d", opt$input)){
+if (!file_test("-d", opt$case)){
   print_help(opt_parser)
-  stop("Input must be a directory.", call.=FALSE)
+  stop("Case must be a directory.", call.=FALSE)
+}
+
+if (!file_test("-d", opt$control)){
+  print_help(opt_parser)
+  stop("Control must be a directory.", call.=FALSE)
 }
 
 if (!file_test("-d", opt$output)){
   dir.create(opt$output)
 }
 
-opt$input <- ifelse(substr(opt$input, nchar(opt$input), nchar(opt$input))=='/', opt$input, paste0(opt$input,'/'))
+opt$case<- ifelse(substr(opt$case, nchar(opt$case), nchar(opt$case))=='/', opt$case, paste0(opt$case,'/'))
+opt$control <- ifelse(substr(opt$control, nchar(opt$control), nchar(opt$control))=='/', opt$control, paste0(opt$control,'/'))
 opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='/', opt$output, paste0(opt$output,'/'))
 
 # Function declaration --------------------------------------------------------
-combine.htseq <- function(cntDir, pat){
+combine.htseq <- function(caseDir, ctrlDir){
   # adapted from https://wiki.bits.vib.be/index.php/NGS_RNASeq_DE_Exercise.4#Combine_individual_HTSeq_files_from_the_.27all.27_mapping_series
   
-  tophat.all <- list.files(path = cntDir, pattern = pat)
+  cases <- list.files(path = caseDir)
+  ctrls <- list.files(path = ctrlDir)
   
   # we choose the 'all' series
-  myfiles <- tophat.all
   DT <- list()
   
   # read each file as array element of DT and rename the last 2 cols
   # we created a list of single sample tables
-  for (i in 1:length(myfiles) ) {
-  	infile = paste0(cntDir, myfiles[i])
-  	DT[[myfiles[i]]] <- read.table(infile, header = F, stringsAsFactors = FALSE)
-  	cnts <- gsub("(.*).htseq-count.txt", "\\1", myfiles[i])
-  	colnames(DT[[myfiles[i]]]) <- c("ID", cnts)
+  for (i in 1:length(cases) ) {
+  	infile = paste0(caseDir, cases[i])
+  	DT[[cases[i]]] <- read.table(infile, header = F, stringsAsFactors = FALSE)
+  	cnts <- sub("\\..*", "", basename(cases[i]))
+  	colnames(DT[[cases[i]]]) <- c("ID", cnts)
+  }
+  
+  for (i in 1:length(ctrls) ) {
+    infile = paste0(ctrlDir, ctrls[i])
+    DT[[ctrls[i]]] <- read.table(infile, header = F, stringsAsFactors = FALSE)
+    cnts <- sub("\\..*", "", basename(ctrls[i]))
+    colnames(DT[[ctrls[i]]]) <- c("ID", cnts)
   }
   
   # merge all elements based on first ID columns
-  data <- DT[[myfiles[1]]]
+  data <- DT[[cases[1]]]
   
   # we now add each other table with the ID column as key
-  for (i in 2:length(myfiles)) {
-	y <- DT[[myfiles[i]]]
+  for (i in 2:length(cases)) {
+	y <- DT[[cases[i]]]
 	z <- merge(data, y, by = c("ID"))
 	data <- z
+  }
+  
+  for (i in 1:length(ctrls)) {
+    y <- DT[[ctrls[i]]]
+    z <- merge(data, y, by = c("ID"))
+    data <- z
   }
   
   # ID column becomes rownames
@@ -69,12 +90,12 @@ combine.htseq <- function(cntDir, pat){
   data.all <- data[grep("^ENS", rownames(data), perl=TRUE, invert=FALSE), ]
   
   # cleanup intermediate objects
-  rm(y, z, i, DT)
+  rm(y, z, i, DT, data)
 
   return(data.all)
 }
 
-run.OUTRIDER <- function(countDir, ctsTable){
+run.OUTRIDER <- function(ctsTable){
   # Load data
   ctsTable <- tibble::rownames_to_column(ctsTable, "geneID")
   ctsTable <- mutate(ctsTable, geneID = sub("\\..*$", "", geneID))
@@ -114,7 +135,7 @@ plot_QQ_ExRank <- function(ods, res, resDir){
   dir.create(paste0(imgPath, "QQ"), recursive = TRUE, showWarnings = FALSE)
   dir.create(paste0(imgPath, "Expression"), showWarnings = FALSE)
 	
-  for (i in c(1:nrow(res))){
+  for (i in 1:nrow(res)){
 	  
     # QQ plot of a gene with outlier events
 	  png(paste0(imgPath, "QQ/", res[i]$sampleID, ".", res[i]$geneID, ".png"), width = 715, height = 494)
@@ -131,23 +152,23 @@ plot_QQ_ExRank <- function(ods, res, resDir){
 suppressMessages(library(dplyr))
 suppressMessages(library(OUTRIDER))
 suppressMessages(library(biomaRt))
+suppressMessages(library(rlist)) #list.append
 suppressMessages(library(ggplot2))
 
 register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
 
-data.all <- combine.htseq(opt$input, "htseq-count.txt$")
+data.all <- combine.htseq(opt$case, opt$control)
   
 # Run OUTRIDER
 print("Running OUTRIDER analysis")
-ods <- run.OUTRIDER(opt$input, data.all)
+ods <- run.OUTRIDER(data.all)
 odsResult <- results(ods, all = TRUE)
 
 # output results
 print("Dumping results & graphs")
-samples <- unique(odsResult$sampleID)
-samples <- samples[!grepl("Control", samples)]
+samples <- sub("\\..*", "", basename(list.files(path = opt$case)))
 
-for (s in c(1:length(samples))){
+for (s in 1:length(samples)){
   res_s <- odsResult %>% filter(grepl(samples[s], sampleID)) %>% replace(is.na(.), ".")
   write.csv(res_s, paste0(opt$output, samples[s], '.OUTRIDER.result.csv'), row.names=FALSE)
   plot_QQ_ExRank(ods, res_s, opt$output)
