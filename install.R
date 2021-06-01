@@ -1,5 +1,5 @@
 pkgs <- c('BiocManager', 'stringr', 'dplyr', 'doParallel',
-			'tibble', 'ggplot2', 'ggrepel', 'optparse', 'remotes')
+			'tibble', 'ggplot2', 'ggrepel', 'optparse', 'remotes', 'rlist')
 
 install.packages(pkgs)
 
