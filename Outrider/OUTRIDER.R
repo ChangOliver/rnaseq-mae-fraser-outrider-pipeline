@@ -8,6 +8,8 @@ option_list = list(
               help="input directory of control count files", metavar="character"),
   make_option(c("-o", "--output"), type="character", default=NULL, 
               help="output directory to store results", metavar="character"),
+  make_option(c("-d", "--dataset"), type="numeric", default=NULL, 
+              help="37 for hs37d5 and 38 for GRCh38", metavar="numeric"),
   make_option(c("-t", "--cores"), type="integer", default=10, 
               help="number of cores to use (default is 10 or maximum cores available, whichever is smaller)", metavar="integer")
 )
@@ -31,6 +33,15 @@ if (!file_test("-d", opt$control)){
 
 if (!file_test("-d", opt$output)){
   dir.create(opt$output)
+}
+
+if (opt$dataset == 37){
+  mart <- read.csv("mart37_export.csv")
+} else if (opt$dataset == 38){
+  mart <- read.csv("mart38_export.csv")
+} else if (is.null(opt$dataset)){
+  print_help(opt_parser)
+  stop("Dataset must be provided.", call.=FALSE)
 }
 
 opt$case<- ifelse(substr(opt$case, nchar(opt$case), nchar(opt$case))=='/', opt$case, paste0(opt$case,'/'))
@@ -100,17 +111,9 @@ run.OUTRIDER <- function(ctsTable){
   ctsTable <- tibble::rownames_to_column(ctsTable, "geneID")
   ctsTable <- mutate(ctsTable, geneID = sub("\\..*$", "", geneID))
 
-  ensembl <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
-
-  queryResult <- getBM(attributes=c('ensembl_gene_id', 'external_gene_name'),
-					   filters = c('ensembl_gene_id'),
-					   values = ctsTable$geneID, mart=ensembl) %>% #query
-				  mutate(geneID = ensembl_gene_id) %>%
-				  subset(select = -c(ensembl_gene_id)) #rename column
-
-  ctsTable <- merge(ctsTable, queryResult, by ='geneID', all=T) %>%
-	mutate(geneID = ifelse(is.na(external_gene_name), geneID, external_gene_name)) %>%
-	subset(select=-c(external_gene_name))
+  ctsTable <- merge(ctsTable, mart, by ='geneID', all.x=T) %>%
+	mutate(geneID = ifelse(is.na(geneName), geneID, geneName)) %>%
+	subset(select=-c(geneName))
 
   ctsMatrix <- data.matrix(ctsTable)[, -1]
   rownames(ctsMatrix) <- ctsTable[,1]
@@ -151,7 +154,6 @@ plot_QQ_ExRank <- function(ods, res, resDir){
 # main --------------------------------------------------------
 suppressMessages(library(dplyr))
 suppressMessages(library(OUTRIDER))
-suppressMessages(library(biomaRt))
 suppressMessages(library(rlist)) #list.append
 suppressMessages(library(ggplot2))
 
