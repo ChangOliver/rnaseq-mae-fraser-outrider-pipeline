@@ -10,6 +10,8 @@ option_list = list(
               help="output directory to store results", metavar="character"),
   make_option(c("-w", "--work"), type="character", default=NULL, 
               help="working directory for intermediate results", metavar="character"),
+  make_option(c("-d", "--dataset"), type="numeric", default=NULL, 
+              help="37 for hs37d5 and 38 for GRCh38", metavar="numeric"),
   make_option(c("-t", "--cores"), type="integer", default=10, 
               help="number of cores to use (default is 10 or maximum cores available, whichever is smaller)", metavar="integer"),
   make_option(c("-f", "--FDR"), type="double", default=0.05, 
@@ -88,7 +90,7 @@ names(q) <- c("psi5", "psi3", "theta")
 fds <- FRASER(fds, q=q, implementation="PCA", BPPARAM = bpparam())
 
 # alternatively, we also provide a way to use biomart for the annotation:
-fds <- annotateRanges(fds)
+fds <- annotateRanges(fds, GRCh=opt$dataset)
 saveFraserDataSet(fds, dir=opt$work)
 
 # get results: we recommend to use an FDR cutoff 0.05
