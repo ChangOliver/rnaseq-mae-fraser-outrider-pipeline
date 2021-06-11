@@ -62,7 +62,7 @@ suppressMessages(library(stringr))
 suppressMessages(library(foreach))
 suppressMessages(library(doParallel))
 
-register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
+register(MulticoreParam(workers=1))
 
 # extract bam files
 case.bam <- paste0( opt$case, list.files(path = opt$case, pattern = ".bam$", all.files = TRUE, recursive = TRUE))
@@ -74,6 +74,8 @@ dataInfo <- data.table(sampleID = sub("\\..*", "", basename(bam.all)), bamFile =
 
 settings <- FraserDataSet(colData=dataInfo, workingDir=opt$work)
 fds <- countRNAData(settings, NcpuPerSample = min(opt$cores, multicoreWorkers()))
+
+register(MulticoreParam(workers=min(opt$cores, multicoreWorkers())))
 
 # compute stats
 fds <- calculatePSIValues(fds)
