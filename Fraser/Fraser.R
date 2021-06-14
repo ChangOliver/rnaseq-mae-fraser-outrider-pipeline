@@ -103,9 +103,7 @@ types = c("theta", "psi5", "psi3")
 cl = makeCluster(opt$core)
 registerDoParallel(cl)
 
-foreach (s = 1:length(samples) ) %dopar% {
-  library(FRASER)
-  library(dplyr)
+ret <- foreach (s = 1:length(samples), .packages=c("FRASER", "dplyr") ) %dopar% {
   
   res_s <- res[res$sampleID == samples[s]] %>% replace(is.na(.), ".")
   write.csv(res_s, paste0(opt$output, samples[s], '.FRASER.result.csv'), row.names=FALSE)
@@ -123,6 +121,10 @@ foreach (s = 1:length(samples) ) %dopar% {
     }
     
     extract <- res[res$sampleID == samples[s]]
+    
+    if (length(extract) == 0){
+      return()
+    }
     
     for (i in c(1:length(extract))){
       if (is.na(extract[i]$hgncSymbol@values)){
