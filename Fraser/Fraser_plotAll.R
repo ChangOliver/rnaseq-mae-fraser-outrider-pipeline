@@ -96,7 +96,7 @@ ret <- foreach (s = 1:length(samples), .packages=c("FRASER", "dplyr") ) %dopar% 
       return()
     }
 
-    for (i in c(1:length(extract))){
+    for (i in 1:length(extract)){
       if (is.na(extract[i]$hgncSymbol@values)){
         png(file=paste0(QQpath, samples[s], ".QQ-", i, ".", extract[i]$type, ".png"))
         print(plotQQ(fds, result=extract[i]))
