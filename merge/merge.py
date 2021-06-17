@@ -32,7 +32,10 @@ def parse_arg():
 
 def read_input(opt):
 	# input mart
-	mart = pd.read_csv("mart37_export.csv" if opt.dataset == 37 else "mart38_export.csv", dtype={'chr': "string"})
+	if opt.dataset == 37:
+		mart = pd.read_csv("mart37_export.csv", dtype={'Chromosome': "string"})
+	else:
+		mart = pd.read_csv("mart38_export.csv", dtype={'Chromosome': "string"})
 	mart.rename(columns={"GeneName": "OUTRIDER_geneID", "Chromosome": "OUTRIDER_chr", "GeneStart": "OUTRIDER_start", "GeneEnd":"OUTRIDER_end"}, inplace=True)
 
 	# input MAE
