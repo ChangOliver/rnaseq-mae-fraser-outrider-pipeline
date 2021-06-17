@@ -7,16 +7,11 @@ from optparse import OptionParser
 # argument parsing 
 def parse_arg():
 	parser = OptionParser()
-	parser.add_option("-m", "--mae", type="string", default=None,
-					help="input MAE.result.csv", metavar="FILE")
-	parser.add_option("-f", "--fraser", type="string", default=None, 
-					help="input FRASER.result.csv", metavar="FILE")
-	parser.add_option("-u", "--outrider", type="string", default=None, 
-					help="input OUTRIDER.result.csv", metavar="FILE")
-	parser.add_option("-d", "--dataset", type="int", default=None, 
-					help="37 for GRCh37 and 38 for GRCh38", metavar="INT")
-	parser.add_option("-o", "--output", type="string", default=None, 
-					help="output directory to store results", metavar="FILE")
+	parser.add_option("-m", "--mae", type="string", default=None, help="input MAE.result.csv", metavar="FILE")
+	parser.add_option("-f", "--fraser", type="string", default=None, help="input FRASER.result.csv", metavar="FILE")
+	parser.add_option("-u", "--outrider", type="string", default=None, help="input OUTRIDER.result.csv", metavar="FILE")
+	parser.add_option("-d", "--dataset", type="int", default=None, help="37 for GRCh37 and 38 for GRCh38", metavar="INT")
+	parser.add_option("-o", "--output", type="string", default=None, help="output directory to store results", metavar="FILE")
 
 	(opt, args) = parser.parse_args()
 
