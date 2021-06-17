@@ -126,4 +126,4 @@ if __name__ == "__main__":
 
 	data = read_input(opt)
 	res = merge(data["mae"], data["fraser"], data["outrider"])
-	res.to_csv(opt.output + sample + ".rnaseq.merge.tsv", index=False, na_rep=".")
+	res.to_csv(opt.output + sample + ".rnaseq.merge.tsv", index=False, na_rep=".", sep='\t')
