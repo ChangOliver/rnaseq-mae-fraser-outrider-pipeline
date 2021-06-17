@@ -33,19 +33,19 @@ def parse_arg():
 def read_input(opt):
 	# input mart
 	if opt.dataset == 37:
-		mart = pd.read_csv("mart37_export.csv", dtype={'Chromosome': "string"})
+		mart = pd.read_csv("mart37_export.csv")
 	else:
-		mart = pd.read_csv("mart38_export.csv", dtype={'Chromosome': "string"})
+		mart = pd.read_csv("mart38_export.csv")
 	mart.rename(columns={"GeneName": "OUTRIDER_geneID", "Chromosome": "OUTRIDER_chr", "GeneStart": "OUTRIDER_start", "GeneEnd":"OUTRIDER_end"}, inplace=True)
 
 	# input MAE
-	mae = pd.read_csv(opt.mae, dtype={'contig': "string"})
+	mae = pd.read_csv(opt.mae, dtype={'contig': object})
 	mae.drop('sampleID', inplace=True, axis=1)
 	mae = mae.add_prefix("MAE_")
 	mae.sort_values(by=["MAE_contig", "MAE_position"], inplace=True)
 	
 	# input FRASER
-	fraser = pd.read_csv(opt.fraser, dtype={'seqnames': "string"})
+	fraser = pd.read_csv(opt.fraser)
 	fraser.drop('sampleID', inplace=True, axis=1)
 	fraser = fraser.add_prefix("FRASER_")
 	fraser.sort_values(by=["FRASER_seqnames", "FRASER_start", "FRASER_end"], inplace=True)
