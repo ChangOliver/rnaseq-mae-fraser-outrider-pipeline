@@ -95,11 +95,11 @@ def merge(mae, fraser, outrider):
 
 	# typecast
 	res = res.astype({ 	'MAE_position': 'Int64', 'MAE_refCount': 'Int64', 'MAE_altCount': 'Int64',
-						'MAE_totalCount': 'Int64', 'MAE_signif': 'boolean', 'MAE_signif_ALT': 'boolean',
-						'MAE_rare': 'boolean', 'FRASER_start': 'Int64', 'FRASER_end': 'Int64',
+						'MAE_totalCount': 'Int64', 'MAE_signif': 'bool', 'MAE_signif_ALT': 'bool',
+						'MAE_rare': 'bool', 'FRASER_start': 'Int64', 'FRASER_end': 'Int64',
 						'FRASER_width': 'Int64', 'FRASER_counts': 'Int64', 'FRASER_totalCounts': 'Int64',
 						'OUTRIDER_start': 'Int64', 'OUTRIDER_end': 'Int64', 'OUTRIDER_rawcounts': 'Int64',
-						'OUTRIDER_aberrant': 'boolean', 'OUTRIDER_AberrantBySample': 'Int64', 'OUTRIDER_AberrantByGene': 'Int64'
+						'OUTRIDER_aberrant': 'bool', 'OUTRIDER_AberrantBySample': 'Int64', 'OUTRIDER_AberrantByGene': 'Int64'
 					})
 
 	res[["FRASER_hgncSymbol", "OUTRIDER_geneID", "MAE_contig", "FRASER_seqnames", "OUTRIDER_chr"]] = res[["FRASER_hgncSymbol", "OUTRIDER_geneID", "MAE_contig", "FRASER_seqnames", "OUTRIDER_chr"]].fillna(".")
