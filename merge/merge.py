@@ -93,6 +93,8 @@ def merge(mae, fraser, outrider):
 
 	res = pd.read_sql_query(query, conn)
 
+	res = res.fillna(0)
+
 	# typecast
 	res = res.astype({ 	'MAE_position': 'int64', 'MAE_refCount': 'int64', 'MAE_altCount': 'int64',
 						'MAE_totalCount': 'int64', 'MAE_signif': 'bool', 'MAE_signif_ALT': 'bool',
