@@ -35,12 +35,17 @@ opt$output <- ifelse(substr(opt$output, nchar(opt$output), nchar(opt$output))=='
 
 # functions --------------------------------------------------------
 get.translation <- function(res, col){
+  
+  if (nrow(res) == 0){
+    return(res)
+  }
+  
   idSymbolTable <- read.csv(file = "./translation_table.csv")
   translationDict <- as.vector(idSymbolTable$Gene.name)
   names(translationDict) <- idSymbolTable$Ensembl.ID
   
   for (i in c(1:nrow(res))){
-    res[i, col] <- translationDict[[res[[i, 1]]]]
+    res[i, col] <- translationDict[res[i, 1]]
   }
   
   return(res)
