@@ -1,12 +1,13 @@
-pkgs <- c('BiocManager', 'stringr', 'dplyr', 'doParallel',
-			'tibble', 'ggplot2', 'ggrepel', 'optparse', 'remotes', 'rlist')
-
-install.packages(pkgs)
-
-BiocManager::install("biomaRt")
-BiocManager::install("OUTRIDER")
-BiocManager::install("MafDb.gnomAD.r2.1.hs37d5")
-BiocManager::install("MafDb.gnomAD.r2.1.GRCh38")
+install.packages('optparse')
+install.packages('dplyr')
+install.packages('doParallel')
+install.packages('rlist')
+install.packages('xml2')
+install.packages('remotes')
+install.packages('BiocManager')
+BiocManager::install('mumichae/tMAE')
 BiocManager::install("FRASER")
 
-remotes::install_github("mumichae/tMAE")
+options(timeout=0)
+BiocManager::install("MafDb.gnomAD.r2.1.hs37d5")
+BiocManager::install("MafDb.gnomAD.r2.1.GRCh38")
